@@ -12,7 +12,7 @@ async function main() {
     format: 'cjs',
     platform: 'node',
     target: 'node18',
-    sourcemap: !production,
+    sourcemap: true,
     minify: production,
     metafile: true,
     logLevel: 'info',

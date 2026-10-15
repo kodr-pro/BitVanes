@@ -11,7 +11,7 @@ eslint.config.mjs
 node_modules/.cache/**
 !dist/**
 .gitignore
-**/*.map
+node_modules/**/*.map
 node_modules/web-tree-sitter/debug/**
 node_modules/web-tree-sitter/lib/**
 node_modules/web-tree-sitter/src/**

@@ -22,6 +22,9 @@ marketplace debut with no feature changes since 0.5.0.
 - Node engine floor raised to `>=20.3.0`, matching the `AbortSignal.any`
   requirement of the LLM request plumbing (VS Code 1.95 ships Node 20.18,
   so no user is affected).
+- The production bundle now ships a source map, and the `copilot` keyword
+  was dropped from package metadata, to satisfy the Marketplace's
+  suspicious-content validation on first publish.
 
 ## [0.5.0] — 2026-09-16
 
