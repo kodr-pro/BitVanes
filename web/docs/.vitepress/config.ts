@@ -26,7 +26,7 @@ export default defineConfig({
         ],
       },
     ],
-    socialLinks: [{ icon: 'github', link: 'https://github.com/BitVanes/BitVanes' }],
+    socialLinks: [{ icon: 'github', link: 'https://github.com/kodr-pro/BitVanes' }],
     footer: {
       message: 'Released under a proprietary license.',
       copyright: 'Copyright © 2026 BitVanes',

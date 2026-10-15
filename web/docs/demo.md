@@ -30,4 +30,4 @@ Transport: `[ ◀ prev ]` `Step 3/6` `[ next ▶ ]`
 
 ---
 
-A recording of a full session is coming soon — along with the marketplace listing.
+A recording of a full session is coming soon. Find BitVanes on the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=bitvanes.bitvanes).

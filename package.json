@@ -2,21 +2,21 @@
   "name": "bitvanes",
   "displayName": "BitVanes",
   "description": "Guided, step-by-step tours through diffs, AI-generated changes, and unfamiliar code — right inside VS Code.",
-  "version": "0.5.0",
+  "version": "1.0.0",
   "publisher": "bitvanes",
   "license": "SEE LICENSE IN LICENSE.md",
   "icon": "resources/icon.png",
   "repository": {
     "type": "git",
-    "url": "https://github.com/BitVanes/BitVanes.git"
+    "url": "https://github.com/kodr-pro/BitVanes.git"
   },
   "bugs": {
-    "url": "https://github.com/BitVanes/BitVanes/issues"
+    "url": "https://github.com/kodr-pro/BitVanes/issues"
   },
   "homepage": "https://bitvanes.com",
   "engines": {
     "vscode": "^1.95.0",
-    "node": ">=20.0.0"
+    "node": ">=20.3.0"
   },
   "extensionKind": [
     "ui"

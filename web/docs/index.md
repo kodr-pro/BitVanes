@@ -3,7 +3,7 @@ layout: home
 
 hero:
   name: BitVanes
-  text: Ai guided code tours
+  text: AI-guided code tours
   tagline: BitVanes turns diffs, AI-generated changes, or any function you don't understand into a step-by-step tour inside VS Code — spotlighted statements, traced data flow, and explanations tuned to how deep you want to go.
   image:
     src: /logo.svg
@@ -14,7 +14,7 @@ hero:
       link: /guide/getting-started
     - theme: alt
       text: View on GitHub
-      link: https://github.com/BitVanes/BitVanes
+      link: https://github.com/kodr-pro/BitVanes
 
 features:
   - icon: 🎯

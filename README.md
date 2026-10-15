@@ -1,6 +1,6 @@
 # BitVanes
 
-**Ai guided code tour — diffs, AI-generated changes, or any function you want to understand.**
+**AI-guided code tours — diffs, AI-generated changes, or any function you want to understand.**
 
 BitVanes parses your pending changes (or any selected function) into syntax trees, asks a language model to trace the execution and data flow, and plays the result back as synchronized steps in your editor: the active statement spotlighted, everything else dimmed, and variable transitions explained as you step.
 
@@ -20,7 +20,7 @@ Built for reviewing exactly the kind of code where being wrong is expensive — 
 
 - **Marketplace:** search "BitVanes" — [bitvanes.bitvanes](https://marketplace.visualstudio.com/items?itemName=bitvanes.bitvanes)
 - **From source:** `npm ci && npm run compile`, then open this folder in VS Code and press F5
-- **Prebuilt vsix:** grab the latest from [Releases](https://github.com/BitVanes/BitVanes/releases) and run `code --install-extension bitvanes-v<version>.vsix`
+- **Prebuilt vsix:** grab the latest from [Releases](https://github.com/kodr-pro/BitVanes/releases) and run `code --install-extension bitvanes-v<version>.vsix`
 
 ## Choosing a model
 

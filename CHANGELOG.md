@@ -4,6 +4,25 @@ All notable changes to BitVanes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [1.0.0] — 2026-10-15
+
+First stable release. The 0.x line converged on line-accurate walkthroughs,
+a hardened security model, and instant offline tours; 1.0.0 marks the
+marketplace debut with no feature changes since 0.5.0.
+
+### Added
+- VS Code Marketplace listing — search "BitVanes" in the Extensions view.
+  Installing from the Marketplace also unlocks the default GitHub Copilot
+  provider: the VS Code Language Model API only serves marketplace-published
+  extensions, so VSIX-only installs fall back to a configured endpoint.
+
+### Changed
+- Repository relocated to `kodr-pro/BitVanes`; repository, issues, releases,
+  and website links updated accordingly.
+- Node engine floor raised to `>=20.3.0`, matching the `AbortSignal.any`
+  requirement of the LLM request plumbing (VS Code 1.95 ships Node 20.18,
+  so no user is affected).
+
 ## [0.5.0] — 2026-09-16
 
 The "lands on the right line" release: a full audit of the range pipeline

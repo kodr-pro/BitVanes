@@ -27,7 +27,7 @@ code --install-extension bitvanes-v<version>.vsix
 ```
 
 ```bash [From source]
-git clone https://github.com/BitVanes/BitVanes.git
+git clone https://github.com/kodr-pro/BitVanes.git
 cd BitVanes && npm ci && npm run compile
 # open in VS Code, press F5
 ```
