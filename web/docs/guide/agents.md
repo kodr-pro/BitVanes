@@ -70,8 +70,8 @@ agent offers a tour when it completes a task.
 
 Anything that can execute a shell command can open a tour: pre-push hooks,
 `make review`, or a post-job step in CI that pings your editor. If `code`
-isn't on `PATH` (remote/SSH, containers), substitute the appropriate CLI
-(`code Tunnel`, `code-server --open-url`, etc.).
+isn't on `PATH` (remote/SSH, containers), substitute your environment's
+equivalent (e.g. `code-server --open-url`).
 
 ## Exporting the plan
 

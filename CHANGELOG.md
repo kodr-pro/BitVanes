@@ -29,6 +29,10 @@ or whoever — wrote the code.
   `VSCE_PAT` is unset, instead of silently skipping that registry publish.
 - A second walkthrough request while one is already generating is declined
   with a notice instead of racing the first (this also guards deep links).
+- Development dependency `@vscode/vsce` upgraded to 4.x, dropping the
+  vulnerable `secretlint → globby → braces` chain (CVE-2026-93687 — every
+  published `braces` is affected, so no in-place upgrade existed) from the
+  packaging toolchain. `npm audit` is clean.
 
 ### Notes
 - One-time ask: after the third completed walkthrough, BitVanes requests an
