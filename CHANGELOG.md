@@ -7,14 +7,19 @@ All notable changes to BitVanes are documented here. The format follows
 ## [1.0.0] — 2026-10-15
 
 First stable release. The 0.x line converged on line-accurate walkthroughs,
-a hardened security model, and instant offline tours; 1.0.0 marks the
-marketplace debut with no feature changes since 0.5.0.
+a hardened security model, and instant offline tours; 1.0.0 has no feature
+changes since 0.5.0. The extension is listed on Open VSX. The VS Code
+Marketplace listing is submitted and still pending Microsoft review — it is
+not live yet.
 
 ### Added
-- VS Code Marketplace listing — search "BitVanes" in the Extensions view.
-  Installing from the Marketplace also unlocks the default GitHub Copilot
-  provider: the VS Code Language Model API only serves marketplace-published
-  extensions, so VSIX-only installs fall back to a configured endpoint.
+- Open VSX listing — search "BitVanes", or install from
+  https://open-vsx.org/extension/bitvanes/bitvanes
+- VS Code Marketplace listing submitted; the page 404s until Microsoft
+  finishes review. Once that listing is approved, installing from the
+  Marketplace is what unlocks the default GitHub Copilot provider: the
+  VS Code Language Model API only serves Marketplace-published extensions,
+  so Open VSX and VSIX installs fall back to a configured endpoint.
 
 ### Changed
 - Repository relocated to `kodr-pro/BitVanes`; repository, issues, releases,

@@ -18,8 +18,15 @@ Run **BitVanes: Set Walkthrough Style** (also in the panel's ⋯ menu) or set `b
 
 ::: code-group
 
+```text [Open VSX]
+Install from Open VSX while Marketplace review is pending:
+https://open-vsx.org/extension/bitvanes/bitvanes
+```
+
 ```text [Marketplace]
-Search "BitVanes" in the VS Code Extensions view.
+VS Code Marketplace listing is pending Microsoft review
+(the page 404s until it is approved):
+https://marketplace.visualstudio.com/items?itemName=bitvanes.bitvanes
 ```
 
 ```bash [From release]
@@ -43,9 +50,11 @@ cd BitVanes && npm ci && npm run compile
 
 ## Choosing a model
 
-### GitHub Copilot (default, zero config)
+### GitHub Copilot (Marketplace installs only)
 
-If you're signed in to Copilot, BitVanes uses VS Code's built-in Language Model API. Nothing to configure, no keys.
+If you installed BitVanes from the VS Code Marketplace and you're signed in to Copilot, BitVanes uses VS Code's built-in Language Model API. Nothing to configure, no keys.
+
+That API only serves Marketplace-published extensions. Open VSX and VSIX installs cannot use Copilot as the default — point BitVanes at a local or hosted OpenAI-compatible endpoint instead. The Marketplace listing is still pending Microsoft review.
 
 ### Local models — Ollama, LM Studio, vLLM
 

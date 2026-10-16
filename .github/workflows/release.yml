@@ -29,3 +29,25 @@ jobs:
         with:
           files: bitvanes-${{ github.ref_name }}.vsix
           generate_release_notes: true
+      # Registry publishes no-op when the matching repo secret is unset, so a
+      # missing token does not fail the tag release. Tokens:
+      #   OVSX_PAT — Open VSX personal access token (namespace bitvanes)
+      #   VSCE_PAT — Azure DevOps PAT with Marketplace Manage scope
+      - name: Publish to Open VSX
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          if [ -z "$OVSX_PAT" ]; then
+            echo "OVSX_PAT is not set; skipping Open VSX publish."
+            exit 0
+          fi
+          npx ovsx publish --skip-duplicate "bitvanes-${{ github.ref_name }}.vsix"
+      - name: Publish to VS Code Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [ -z "$VSCE_PAT" ]; then
+            echo "VSCE_PAT is not set; skipping VS Code Marketplace publish."
+            exit 0
+          fi
+          npx vsce publish --skip-duplicate --packagePath "bitvanes-${{ github.ref_name }}.vsix"
