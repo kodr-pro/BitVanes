@@ -38,7 +38,9 @@
     "go",
     "python"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onUri"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
