@@ -4,6 +4,23 @@ All notable changes to BitVanes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [1.0.1] — 2026-10-16
+
+### Changed
+- Install docs lead with Open VSX
+  (https://open-vsx.org/extension/bitvanes/bitvanes). The VS Code
+  Marketplace listing stays marked pending Microsoft review, and the docs
+  note that GitHub Copilot as the default model works only for Marketplace
+  installs.
+- Tag releases publish the VSIX to both Open VSX (`ovsx`, secret
+  `OVSX_PAT`) and the VS Code Marketplace (`vsce`, secret `VSCE_PAT`).
+  Each publish step skips when its secret is unset.
+- Relicensed under the Apache License 2.0. Copyright holder is kodr-pro.
+
+### Removed
+- The `dependency-review` CI job. This repository does not enable GitHub's
+  dependency graph, so that check could not run.
+
 ## [1.0.0] — 2026-10-15
 
 First stable release. The 0.x line converged on line-accurate walkthroughs,
