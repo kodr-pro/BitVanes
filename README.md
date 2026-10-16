@@ -70,4 +70,6 @@ Docs and demo: https://bitvanes.com · Changes: [CHANGELOG.md](CHANGELOG.md)
 
 ## License
 
-Proprietary — see [LICENSE.md](LICENSE.md).
+[Apache License 2.0](LICENSE). Copyright 2026 kodr-pro. See [NOTICE](NOTICE).
+
+Contributions intentionally submitted to this repository for inclusion are licensed under Apache-2.0, under the terms of section 5 of the license, without additional terms or conditions.
