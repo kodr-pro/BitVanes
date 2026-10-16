@@ -4,6 +4,45 @@ All notable changes to BitVanes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [1.1.0] — 2026-10-16
+
+The "agent-ready" release: BitVanes tours can now be started by whatever —
+or whoever — wrote the code.
+
+### Added
+- **Deep links for agents, terminals and hooks:**
+  `vscode://bitvanes.bitvanes/walkthrough?scope=working-tree|staged|instant`
+  starts a tour via `code --open-url` from any shell, git hook, or coding
+  agent, with an optional `style=expert|standard|learner` override for that
+  run only. Links are strictly validated (unknown paths, authorities, scopes
+  and styles are rejected) and open no new network surface — see the new
+  [Agents & automation](https://bitvanes.com/guide/agents) guide for hook
+  snippets for Claude Code, Cursor and AGENTS.md-driven agents.
+- **Export Walkthrough Plan as JSON** (`bitvanes.exportPlan`): saves the
+  current plan — steps, exact ranges, variable transitions, security notes —
+  as `bitvanes.walkthroughPlan` v1 JSON for scripts, audits and agents.
+- **Issue & PR templates and a CONTRIBUTING guide.**
+- `npm run test:coverage` (adds `@vitest/coverage-v8` as a dev dependency).
+
+### Changed
+- Tag releases now emit a visible GitHub Actions warning when `OVSX_PAT` or
+  `VSCE_PAT` is unset, instead of silently skipping that registry publish.
+- A second walkthrough request while one is already generating is declined
+  with a notice instead of racing the first (this also guards deep links).
+
+### Notes
+- One-time ask: after the third completed walkthrough, BitVanes requests an
+  Open VSX review once — ever — and never again. It is a local counter in
+  extension state; BitVanes still has zero telemetry.
+- Marketplace correction: the v1.0.1 release run shows `VSCE_PAT` was never
+  set, so the Marketplace publish step has always skipped — the listing was
+  never actually submitted for review, and earlier "pending review" notes
+  were wrong. Publishing needs an Azure DevOps PAT with Marketplace manage
+  scope stored as the `VSCE_PAT` repo secret; with it, the next tag release
+  submits the listing.
+- Release artifacts up to and including 1.0.0 were published under BitVanes'
+  earlier proprietary license; 1.0.1 and later are Apache-2.0.
+
 ## [1.0.1] — 2026-10-16
 
 ### Changed
