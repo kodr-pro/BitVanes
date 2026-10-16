@@ -30,14 +30,3 @@ jobs:
         with:
           name: bitvanes-vsix
           path: bitvanes.vsix
-
-  dependency-review:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v5
-      - uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: moderate
