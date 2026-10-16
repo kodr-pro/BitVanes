@@ -7,6 +7,8 @@ import { GitProvider, getActiveSelection } from './git/GitProvider';
 import { LlmManager } from './llm/LlmManager';
 import type { WalkthroughStyle } from './llm/prompts';
 import { PlanValidationError } from './types/protocol';
+import { parseWalkthroughUri } from './uriHandler';
+import { COMPLETED_COUNT_KEY, REVIEW_PROMPT_SHOWN_KEY, REVIEW_URL, shouldAskForReview } from './util/reviewPrompt';
 import { buildDiffRequest, buildSelectionRequest, refinePlanRanges } from './pipeline/contextBuilder';
 import { buildLocalPlan, MAX_FILES as LOCAL_MAX_FILES } from './pipeline/localPlan';
 import { StatusBarController } from './views/StatusBarController';
@@ -111,7 +113,13 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const readText = (absPath: string) => fs.readFile(absPath, 'utf8');
 
-  const runPipeline = async (kind: 'diff' | 'staged' | 'selection' | 'instant') => {
+  let pipelineBusy = false;
+  const runPipeline = async (kind: 'diff' | 'staged' | 'selection' | 'instant', styleOverride?: WalkthroughStyle) => {
+    if (pipelineBusy) {
+      void vscode.window.showInformationMessage('BitVanes: a walkthrough is already generating — one at a time.');
+      return;
+    }
+    pipelineBusy = true;
     const t0 = Date.now();
     stopAutoplay();
     try {
@@ -142,6 +150,7 @@ export function activate(context: vscode.ExtensionContext): void {
             void vscode.window.showInformationMessage(
               `BitVanes: ${plan.totalSteps}-step instant walkthrough in ${secs}s (local, no model).${cov}`,
             );
+            void maybeAskForReview();
             return;
           }
 
@@ -167,7 +176,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
           progress.report({ message: 'asking the model…' });
           const cfg = vscode.workspace.getConfiguration('bitvanes.llm');
-          const style = normalizeStyle(vscode.workspace.getConfiguration('bitvanes.walkthrough').get<string>('style'));
+          const style = styleOverride ?? normalizeStyle(vscode.workspace.getConfiguration('bitvanes.walkthrough').get<string>('style'));
           const { plan, provider } = await llm.generatePlan(
             request,
             {
@@ -207,6 +216,7 @@ export function activate(context: vscode.ExtensionContext): void {
           void vscode.window.showInformationMessage(
             `BitVanes: ${plan.totalSteps}-step walkthrough in ${secs}s via ${provider}. Hover the highlight or press alt+] to step.${cov}`,
           );
+          void maybeAskForReview();
         },
       );
     } catch (err) {
@@ -217,6 +227,26 @@ export function activate(context: vscode.ExtensionContext): void {
       } else {
         void vscode.window.showErrorMessage(`BitVanes: ${msg}`);
       }
+    } finally {
+      pipelineBusy = false;
+    }
+  };
+
+  // One-time, dismissible-forever review ask. Purely local: a completion
+  // counter in globalState, no telemetry of any kind.
+  const maybeAskForReview = async () => {
+    try {
+      const completed = context.globalState.get<number>(COMPLETED_COUNT_KEY, 0) + 1;
+      await context.globalState.update(COMPLETED_COUNT_KEY, completed);
+      if (!shouldAskForReview(completed, context.globalState.get<boolean>(REVIEW_PROMPT_SHOWN_KEY, false))) return;
+      await context.globalState.update(REVIEW_PROMPT_SHOWN_KEY, true);
+      const pick = await vscode.window.showInformationMessage(
+        'Enjoying BitVanes? A review on Open VSX helps other developers find it.',
+        'Leave a review',
+      );
+      if (pick === 'Leave a review') void vscode.env.openExternal(vscode.Uri.parse(REVIEW_URL));
+    } catch {
+      // Best-effort: never let the ask disturb a completed walkthrough.
     }
   };
 
@@ -338,6 +368,31 @@ export function activate(context: vscode.ExtensionContext): void {
     void vscode.window.showInformationMessage(`BitVanes: deleted stored key for ${pick}.`);
   });
 
+  register('bitvanes.exportPlan', async () => {
+    const st = director?.state;
+    if (!st) {
+      void vscode.window.showInformationMessage('BitVanes: no walkthrough to export yet — start one first.');
+      return;
+    }
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    const target = await vscode.window.showSaveDialog({
+      defaultUri: folder
+        ? vscode.Uri.joinPath(folder.uri, `bitvanes-plan-${stamp}.json`)
+        : vscode.Uri.file(`bitvanes-plan-${stamp}.json`),
+      filters: { 'BitVanes walkthrough plan': ['json'] },
+    });
+    if (!target) return;
+    const payload = {
+      kind: 'bitvanes.walkthroughPlan',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      plan: st.plan,
+    };
+    await fs.writeFile(target.fsPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+    void vscode.window.showInformationMessage(`BitVanes: walkthrough plan exported to ${toDisplayPath(target.fsPath)}.`);
+  });
+
   const browseSteps = async () => {
     const st = director?.state;
     if (!st) {
@@ -369,6 +424,26 @@ export function activate(context: vscode.ExtensionContext): void {
     });
     if (picked) director?.jump(picked.index);
   };
+
+  // vscode://bitvanes.bitvanes/walkthrough?scope=… deep links, so terminals,
+  // shell hooks and coding agents can start a tour with `code --open-url`.
+  // Input is untrusted: parseWalkthroughUri validates strictly and this
+  // handler only ever routes into the same pipeline as the palette commands.
+  const handleExternalUri = async (uri: vscode.Uri) => {
+    const parsed = parseWalkthroughUri(uri.authority, uri.path, uri.query);
+    if (!parsed.command) {
+      void vscode.window.showErrorMessage(`BitVanes: ${parsed.error ?? 'unrecognized link'}.`);
+      return;
+    }
+    const kind = parsed.command.scope === 'working-tree' ? 'diff' : parsed.command.scope;
+    await runPipeline(kind, parsed.command.style);
+  };
+
+  context.subscriptions.push(
+    vscode.window.registerUriHandler({
+      handleUri: (uri) => void handleExternalUri(uri),
+    }),
+  );
 
   context.subscriptions.push(director, statusbar, { dispose: stopAutoplay });
 }
