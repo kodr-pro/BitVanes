@@ -30,4 +30,4 @@ Transport: `[ ◀ prev ]` `Step 3/6` `[ next ▶ ]`
 
 ---
 
-A recording of a full session is coming soon. Find BitVanes on the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=bitvanes.bitvanes).
+A recording of a full session is coming soon. Install from [Open VSX](https://open-vsx.org/extension/bitvanes/bitvanes) while the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=bitvanes.bitvanes) listing is pending Microsoft review.

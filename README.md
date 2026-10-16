@@ -8,6 +8,9 @@ Two audiences, one tool: seasoned engineers use it to burn through review diffs 
 
 Built for reviewing exactly the kind of code where being wrong is expensive — smart-contract engines, consensus paths, auth flows, migrations — but useful for any change you want to *understand*, not just *read*.
 
+<!-- TODO: add a real screen recording at docs/demo.gif (spotlighted statement, dimmed scope, step transport). Uncomment the image once that file exists. Do not commit a fabricated stand-in. -->
+<!-- ![BitVanes walkthrough](docs/demo.gif) -->
+
 ## How it works
 
 1. **Ingest** — `bitvanes.walkthroughDiff` reads your unstaged changes (tracked **and untracked** — brand-new AI-generated files included) via `git diff --unified=0` plus `git ls-files --others`; `bitvanes.walkthroughSelection` takes the function under your cursor.
@@ -18,7 +21,8 @@ Built for reviewing exactly the kind of code where being wrong is expensive — 
 
 ## Install
 
-- **Marketplace:** search "BitVanes" — [bitvanes.bitvanes](https://marketplace.visualstudio.com/items?itemName=bitvanes.bitvanes)
+- **Open VSX** (install from here until Marketplace review finishes): [bitvanes.bitvanes](https://open-vsx.org/extension/bitvanes/bitvanes)
+- **VS Code Marketplace** (pending Microsoft review — the listing still 404s): [bitvanes.bitvanes](https://marketplace.visualstudio.com/items?itemName=bitvanes.bitvanes)
 - **From source:** `npm ci && npm run compile`, then open this folder in VS Code and press F5
 - **Prebuilt vsix:** grab the latest from [Releases](https://github.com/kodr-pro/BitVanes/releases) and run `code --install-extension bitvanes-v<version>.vsix`
 
@@ -26,11 +30,11 @@ Built for reviewing exactly the kind of code where being wrong is expensive — 
 
 | Provider | Setup |
 |---|---|
-| **VS Code Copilot** (default) | None. Sign in to GitHub Copilot; BitVanes uses the built-in Language Model API. No keys, no network config. |
+| **VS Code Copilot** (default on Marketplace installs only) | Sign in to GitHub Copilot. BitVanes uses the built-in Language Model API — no keys, no extra network config. This works only for installs from the VS Code Marketplace. Open VSX and VSIX installs cannot use Copilot as the default; configure an endpoint below. The Marketplace listing is still pending review. |
 | **Local — Ollama / LM Studio / vLLM** | `ollama serve`, then set `bitvanes.llm.baseUrl` to `http://localhost:11434/v1` and `bitvanes.llm.modelId` to e.g. `qwen2.5-coder:14b`. Code never leaves your machine. |
 | **OpenAI / Anthropic / OpenRouter** | Run `BitVanes: Set API Key for External LLM Provider`, pick a preset, paste the key. Keys live in VS Code SecretStorage — never in settings files or dotfiles. |
 
-`bitvanes.llm.provider: "auto"` uses Copilot when available and falls back to the configured endpoint otherwise.
+`bitvanes.llm.provider: "auto"` uses Copilot when this install can reach it (a Marketplace install with Copilot signed in) and falls back to the configured endpoint otherwise. Open VSX and VSIX installs always use the configured endpoint.
 
 ## Commands
 
