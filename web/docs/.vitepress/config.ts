@@ -28,8 +28,8 @@ export default defineConfig({
     ],
     socialLinks: [{ icon: 'github', link: 'https://github.com/kodr-pro/BitVanes' }],
     footer: {
-      message: 'Released under a proprietary license.',
-      copyright: 'Copyright © 2026 BitVanes',
+      message: 'Released under the Apache License 2.0.',
+      copyright: 'Copyright 2026 kodr-pro',
     },
     outline: { level: [2, 3] },
   },
