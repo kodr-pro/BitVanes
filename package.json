@@ -4,7 +4,7 @@
   "description": "Guided, step-by-step tours through diffs, AI-generated changes, and unfamiliar code — right inside VS Code.",
   "version": "1.0.0",
   "publisher": "bitvanes",
-  "license": "SEE LICENSE IN LICENSE.md",
+  "license": "Apache-2.0",
   "icon": "resources/icon.png",
   "repository": {
     "type": "git",
