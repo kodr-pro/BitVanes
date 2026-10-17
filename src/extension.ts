@@ -4,16 +4,40 @@ import * as vscode from 'vscode';
 import { TreeSitterResolver } from './ast/TreeSitterResolver';
 import { EditorDirector } from './director/EditorDirector';
 import { GitProvider, getActiveSelection } from './git/GitProvider';
+import type { DiffFile } from './git/pure';
 import { LlmManager } from './llm/LlmManager';
 import type { WalkthroughStyle } from './llm/prompts';
 import { PlanValidationError } from './types/protocol';
+import { parseWalkthroughUri } from './uriHandler';
+import { COMPLETED_COUNT_KEY, REVIEW_PROMPT_SHOWN_KEY, REVIEW_URL, shouldAskForReview } from './util/reviewPrompt';
 import { buildDiffRequest, buildSelectionRequest, refinePlanRanges } from './pipeline/contextBuilder';
 import { buildLocalPlan, MAX_FILES as LOCAL_MAX_FILES } from './pipeline/localPlan';
+import { summarizePlanFiles } from './pipeline/planFiles';
 import { StatusBarController } from './views/StatusBarController';
 import { WalkthroughSidebarProvider } from './views/WalkthroughSidebarProvider';
 import { toDisplayPath, toRelativePath } from './util/text';
 
 class UserError extends Error {}
+
+function statusGlyph(status: string): string {
+  switch (status) {
+    case 'A':
+      return '$(add)';
+    case 'D':
+      return '$(trash)';
+    case 'R':
+      return '$(arrow-right)';
+    case 'T':
+    case 'U':
+      return '$(warning)';
+    default:
+      return '$(diff)';
+  }
+}
+
+function hunkLineCount(f: DiffFile): number {
+  return f.hunks.reduce((acc, h) => acc + h.newCount, 0);
+}
 
 function normalizeStyle(v: unknown): WalkthroughStyle {
   return v === 'expert' || v === 'learner' ? v : 'standard';
@@ -57,8 +81,12 @@ export function activate(context: vscode.ExtensionContext): void {
     browse: () => {
       void browseSteps();
     },
-    start: (mode) => {
-      void runPipeline(mode);
+    start: (mode, arg) => {
+      if (mode === 'file' && !arg) {
+        void vscode.commands.executeCommand('bitvanes.walkthroughFile');
+        return;
+      }
+      void runPipeline(mode, undefined, arg);
     },
     setStyle: (s) => {
       if (s !== 'expert' && s !== 'standard' && s !== 'learner') return;
@@ -111,7 +139,17 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const readText = (absPath: string) => fs.readFile(absPath, 'utf8');
 
-  const runPipeline = async (kind: 'diff' | 'staged' | 'selection' | 'instant') => {
+  let pipelineBusy = false;
+  const runPipeline = async (
+    kind: 'diff' | 'staged' | 'selection' | 'instant' | 'file',
+    styleOverride?: WalkthroughStyle,
+    filePath?: string,
+  ) => {
+    if (pipelineBusy) {
+      void vscode.window.showInformationMessage('BitVanes: a walkthrough is already generating — one at a time.');
+      return;
+    }
+    pipelineBusy = true;
     const t0 = Date.now();
     stopAutoplay();
     try {
@@ -134,6 +172,7 @@ export function activate(context: vscode.ExtensionContext): void {
               root,
               vscode.workspace.getConfiguration('bitvanes.llm').get('maxSteps', 12),
             );
+            plan.files = summarizePlanFiles(files, plan, root);
             sidebar.reveal();
             director?.start(plan);
             const secs = ((Date.now() - t0) / 1000).toFixed(1);
@@ -142,11 +181,13 @@ export function activate(context: vscode.ExtensionContext): void {
             void vscode.window.showInformationMessage(
               `BitVanes: ${plan.totalSteps}-step instant walkthrough in ${secs}s (local, no model).${cov}`,
             );
+            void maybeAskForReview();
             return;
           }
 
           let request;
           let allowedPaths = new Set<string>();
+          let sourceFiles: DiffFile[] = [];
           if (kind === 'selection') {
             const sel = getActiveSelection();
             if (!sel) throw new UserError('Open a file and place the cursor in (or select) the code to walkthrough.');
@@ -156,10 +197,22 @@ export function activate(context: vscode.ExtensionContext): void {
             if (!root) throw new UserError('Open a folder to walkthrough its changes.');
             if (!(await GitProvider.isGitRepo(root))) throw new UserError('This workspace is not a Git repository.');
             progress.report({ message: 'reading diff…' });
-            const files = await GitProvider.diff(root, kind === 'staged');
-            if (files.length === 0) {
-              throw new UserError(kind === 'staged' ? 'No staged changes to walkthrough.' : 'No working-tree changes to walkthrough.');
+            let files: DiffFile[];
+            if (kind === 'file') {
+              if (!filePath) throw new UserError('No file selected to walkthrough.');
+              files = await GitProvider.diffFile(root, filePath);
+              if (files.length === 0) {
+                const untracked = await GitProvider.untrackedFile(root, filePath);
+                if (!untracked) throw new UserError(`No pending changes in ${filePath}.`);
+                files = [untracked];
+              }
+            } else {
+              files = await GitProvider.diff(root, kind === 'staged');
+              if (files.length === 0) {
+                throw new UserError(kind === 'staged' ? 'No staged changes to walkthrough.' : 'No working-tree changes to walkthrough.');
+              }
             }
+            sourceFiles = files;
             allowedPaths = new Set(files.map((f) => toRelativePath(root, f.absPath)));
             const contextLines = vscode.workspace.getConfiguration('bitvanes.llm').get<number>('contextLines', 6);
             request = await buildDiffRequest(files, resolver, readText, contextLines, root);
@@ -167,7 +220,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
           progress.report({ message: 'asking the model…' });
           const cfg = vscode.workspace.getConfiguration('bitvanes.llm');
-          const style = normalizeStyle(vscode.workspace.getConfiguration('bitvanes.walkthrough').get<string>('style'));
+          const style = styleOverride ?? normalizeStyle(vscode.workspace.getConfiguration('bitvanes.walkthrough').get<string>('style'));
           const { plan, provider } = await llm.generatePlan(
             request,
             {
@@ -197,6 +250,10 @@ export function activate(context: vscode.ExtensionContext): void {
             await refinePlanRanges(plan, resolver, root, readText);
           }
 
+          if (root && sourceFiles.length > 0) {
+            plan.files = summarizePlanFiles(sourceFiles, plan, root);
+          }
+
           sidebar.reveal();
           director?.start(plan);
           const secs = ((Date.now() - t0) / 1000).toFixed(1);
@@ -207,6 +264,7 @@ export function activate(context: vscode.ExtensionContext): void {
           void vscode.window.showInformationMessage(
             `BitVanes: ${plan.totalSteps}-step walkthrough in ${secs}s via ${provider}. Hover the highlight or press alt+] to step.${cov}`,
           );
+          void maybeAskForReview();
         },
       );
     } catch (err) {
@@ -217,6 +275,26 @@ export function activate(context: vscode.ExtensionContext): void {
       } else {
         void vscode.window.showErrorMessage(`BitVanes: ${msg}`);
       }
+    } finally {
+      pipelineBusy = false;
+    }
+  };
+
+  // One-time, dismissible-forever review ask. Purely local: a completion
+  // counter in globalState, no telemetry of any kind.
+  const maybeAskForReview = async () => {
+    try {
+      const completed = context.globalState.get<number>(COMPLETED_COUNT_KEY, 0) + 1;
+      await context.globalState.update(COMPLETED_COUNT_KEY, completed);
+      if (!shouldAskForReview(completed, context.globalState.get<boolean>(REVIEW_PROMPT_SHOWN_KEY, false))) return;
+      await context.globalState.update(REVIEW_PROMPT_SHOWN_KEY, true);
+      const pick = await vscode.window.showInformationMessage(
+        'Enjoying BitVanes? A review on Open VSX helps other developers find it.',
+        'Leave a review',
+      );
+      if (pick === 'Leave a review') void vscode.env.openExternal(vscode.Uri.parse(REVIEW_URL));
+    } catch {
+      // Best-effort: never let the ask disturb a completed walkthrough.
     }
   };
 
@@ -228,6 +306,41 @@ export function activate(context: vscode.ExtensionContext): void {
   register('bitvanes.walkthroughStagedDiff', () => runPipeline('staged'));
   register('bitvanes.walkthroughSelection', () => runPipeline('selection'));
   register('bitvanes.walkthroughInstant', () => runPipeline('instant'));
+  register('bitvanes.walkthroughFile', async () => {
+    const root = GitProvider.workspaceRoot();
+    if (!root) {
+      void vscode.window.showInformationMessage('BitVanes: open a folder to walkthrough its changed files.');
+      return;
+    }
+    if (!(await GitProvider.isGitRepo(root))) {
+      void vscode.window.showInformationMessage('BitVanes: this workspace is not a Git repository.');
+      return;
+    }
+    const staged = await GitProvider.diff(root, true);
+    const working = await GitProvider.diff(root, false);
+    const byPath = new Map<string, { path: string; label: string; description: string }>();
+    for (const list of [staged, working]) {
+      for (const f of list) {
+        const rel = toRelativePath(root, f.absPath);
+        if (byPath.has(rel)) continue;
+        byPath.set(rel, {
+          path: rel,
+          label: `${statusGlyph(f.status)} ${rel}`,
+          description: `${f.status} · ${hunkLineCount(f)} changed line${hunkLineCount(f) === 1 ? '' : 's'}`,
+        });
+      }
+    }
+    if (byPath.size === 0) {
+      void vscode.window.showInformationMessage('BitVanes: no pending changes to walkthrough.');
+      return;
+    }
+    const picked = await vscode.window.showQuickPick([...byPath.values()], {
+      placeHolder: 'Walkthrough which changed file?',
+      matchOnDescription: true,
+      ignoreFocusOut: true,
+    });
+    if (picked) void runPipeline('file', undefined, picked.path);
+  });
   register('bitvanes.setStyle', async () => {
     const styles: Array<{ id: WalkthroughStyle; label: string; description: string }> = [
       { id: 'expert', label: 'Expert', description: 'Senior engineers — terse, high-signal, invariants and risk only' },
@@ -338,6 +451,31 @@ export function activate(context: vscode.ExtensionContext): void {
     void vscode.window.showInformationMessage(`BitVanes: deleted stored key for ${pick}.`);
   });
 
+  register('bitvanes.exportPlan', async () => {
+    const st = director?.state;
+    if (!st) {
+      void vscode.window.showInformationMessage('BitVanes: no walkthrough to export yet — start one first.');
+      return;
+    }
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const folder = vscode.workspace.workspaceFolders?.[0];
+    const target = await vscode.window.showSaveDialog({
+      defaultUri: folder
+        ? vscode.Uri.joinPath(folder.uri, `bitvanes-plan-${stamp}.json`)
+        : vscode.Uri.file(`bitvanes-plan-${stamp}.json`),
+      filters: { 'BitVanes walkthrough plan': ['json'] },
+    });
+    if (!target) return;
+    const payload = {
+      kind: 'bitvanes.walkthroughPlan',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      plan: st.plan,
+    };
+    await fs.writeFile(target.fsPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
+    void vscode.window.showInformationMessage(`BitVanes: walkthrough plan exported to ${toDisplayPath(target.fsPath)}.`);
+  });
+
   const browseSteps = async () => {
     const st = director?.state;
     if (!st) {
@@ -369,6 +507,26 @@ export function activate(context: vscode.ExtensionContext): void {
     });
     if (picked) director?.jump(picked.index);
   };
+
+  // vscode://bitvanes.bitvanes/walkthrough?scope=… deep links, so terminals,
+  // shell hooks and coding agents can start a tour with `code --open-url`.
+  // Input is untrusted: parseWalkthroughUri validates strictly and this
+  // handler only ever routes into the same pipeline as the palette commands.
+  const handleExternalUri = async (uri: vscode.Uri) => {
+    const parsed = parseWalkthroughUri(uri.authority, uri.path, uri.query);
+    if (!parsed.command) {
+      void vscode.window.showErrorMessage(`BitVanes: ${parsed.error ?? 'unrecognized link'}.`);
+      return;
+    }
+    const kind = parsed.command.scope === 'working-tree' ? 'diff' : parsed.command.scope;
+    await runPipeline(kind, parsed.command.style);
+  };
+
+  context.subscriptions.push(
+    vscode.window.registerUriHandler({
+      handleUri: (uri) => void handleExternalUri(uri),
+    }),
+  );
 
   context.subscriptions.push(director, statusbar, { dispose: stopAutoplay });
 }

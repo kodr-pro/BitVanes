@@ -93,6 +93,46 @@ export class GitProvider {
     return [...files, ...untracked];
   }
 
+  /**
+   * All pending changes (staged + unstaged) for one tracked file, versus HEAD.
+   * New-side line numbers match the working-tree content, so the walkthrough
+   * lands where the user's editor actually is.
+   */
+  static async diffFile(root: string, relPath: string): Promise<DiffFile[]> {
+    // Fresh repositories have no HEAD yet — fall back to the staged diff there.
+    let out: string;
+    try {
+      out = await GitProvider.exec(
+        ['diff', 'HEAD', '--no-textconv', '--no-ext-diff', '--unified=0', '--no-color', '--', relPath],
+        root,
+      );
+    } catch {
+      out = await GitProvider.exec(
+        ['diff', '--cached', '--no-textconv', '--no-ext-diff', '--unified=0', '--no-color', '--', relPath],
+        root,
+      );
+    }
+    const base = (await GitProvider.repoRoot(root)) ?? root;
+    return parseUnifiedDiff(out)
+      .filter((f) => f.hunks.length > 0)
+      .map((f) => ({ ...f, absPath: path.resolve(base, f.path) }));
+  }
+
+  /** A brand-new (untracked) file as a whole-file addition DiffFile, or undefined. */
+  static async untrackedFile(root: string, relPath: string): Promise<DiffFile | undefined> {
+    const base = (await GitProvider.repoRoot(root)) ?? root;
+    const abs = path.resolve(base, relPath);
+    try {
+      const stat = await fs.stat(abs);
+      if (!stat.isFile() || stat.size > MAX_UNTRACKED_BYTES) return undefined;
+      const text = await fs.readFile(abs, 'utf8');
+      if (text.slice(0, 8_000).includes('\0')) return undefined; // binary
+      return { path: relPath, absPath: abs, status: 'A' as const, hunks: [wholeFileHunk(text)] };
+    } catch {
+      return undefined;
+    }
+  }
+
   /** Untracked (brand-new, e.g. AI-generated) files as whole-file additions. */
   private static async untrackedFiles(startDir: string, base: string): Promise<DiffFile[]> {
     let out: string;

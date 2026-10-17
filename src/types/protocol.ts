@@ -23,11 +23,25 @@ export interface WalkthroughStep {
   securityNote?: string;
 }
 
+/**
+ * Per-file coverage metadata for a walkthrough. Built locally from the source
+ * diff (never model-generated): every changed file appears here, including
+ * files the plan has no steps for, so the UI can show honest coverage.
+ */
+export interface PlanFile {
+  path: string;
+  status: 'A' | 'M' | 'D' | 'R' | 'T' | 'U';
+  changedLines: number;
+  stepCount: number;
+  firstStepIndex?: number;
+}
+
 export interface WalkthroughPlan {
   summary: string;
   entryPoint: string;
   totalSteps: number;
   steps: WalkthroughStep[];
+  files?: PlanFile[];
 }
 
 export interface PlanIssue {

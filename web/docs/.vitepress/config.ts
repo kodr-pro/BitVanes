@@ -16,6 +16,7 @@ export default defineConfig({
         items: [
           { text: 'Getting Started', link: '/guide/getting-started' },
           { text: 'Walkthroughs', link: '/guide/walkthroughs' },
+          { text: 'Agents & automation', link: '/guide/agents' },
         ],
       },
       {

@@ -43,6 +43,7 @@ TRACING RULES — order steps by execution and data flow, not merely top-to-bott
 2. Invariant validation (guards, checks, auth, require/assert, boundary conditions).
 3. State transitions (computations, mutations of variables and storage).
 4. Persistence and return (writes, commits, emits, returns).
+When the user prompt lists multiple files, the walkthrough must cover them file by file in the order given; apply the tracing order within each file. Never collapse a multi-file changeset into a single file's story.
 For every important variable, set "variable": use action "init" for creation, "pass" when a value flows into a call or another scope, "validate" when checked, "mutate" when changed, "commit" when persisted/emitted/stored, "return" when returned. stateBefore/stateAfter are short symbolic values like "0", "None", "tx.input", "msg.value - fee". Keep them under 40 characters.
 
 SECURITY NOTES — set "securityNote" (1-2 factual sentences) when a step involves: access control or authorization checks, unchecked external calls or oracles, integer overflow/underflow or rounding, reentrancy or state-read-after-write risk, secrets or key material, panics/unwraps that can abort, injection surfaces, or resource/limit enforcement. Do not invent issues; if the step is clean, omit securityNote.
@@ -77,23 +78,14 @@ export function buildSystemPrompt(style: WalkthroughStyle = 'standard'): string 
 
 export function buildUserPrompt(req: WalkthroughRequest, maxSteps: number): string {
   const parts: string[] = [];
-  parts.push(`## Task`);
-  parts.push(
-    req.mode === 'diff'
-      ? 'Produce a WalkthroughPlan for the pending code changes below. Walk the changed code path in execution order so a reviewer can follow exactly what the change does.'
-      : 'Produce a WalkthroughPlan for the selected code path below. Trace how data flows through it: from entry, through validation, into state changes, and out via persistence or return.',
-  );
-  parts.push(`Maximum ${maxSteps} steps. Return ONLY the JSON object.`);
-  parts.push('');
-  parts.push(`## Language`);
-  parts.push(req.language ?? 'unknown (inferred)');
-  parts.push('');
 
-  parts.push('## Files');
+  // Resolve the budgeted file list first so the task statement can state the
+  // real coverage contract (every included file must be walked).
   const ordered = orderFiles(req);
+  const headers = new Map<string, string>();
   let total = 0;
-  const included: string[] = [];
-  const skipped: string[] = [];
+  const includedPaths: string[] = [];
+  const skippedPaths: string[] = [];
 
   for (const f of ordered) {
     const header =
@@ -104,16 +96,36 @@ export function buildUserPrompt(req: WalkthroughRequest, maxSteps: number): stri
       '\n```\n' +
       (f.astSummary ? `\nAST symbols:\n${f.astSummary}\n` : '');
     if (total + header.length > MAX_TOTAL_CHARS) {
-      skipped.push(f.path);
+      skippedPaths.push(f.path);
       continue;
     }
-    included.push(header);
+    headers.set(f.path, header);
+    includedPaths.push(f.path);
     total += header.length;
   }
 
-  for (const h of included) parts.push(h);
-  if (skipped.length > 0) {
-    parts.push(`(Omitted for prompt budget: ${skipped.join(', ')})`);
+  parts.push(`## Task`);
+  if (req.mode === 'diff') {
+    parts.push(
+      includedPaths.length > 1
+        ? `Produce a WalkthroughPlan for the pending code changes below. ${includedPaths.length} files changed — cover EVERY one of them: order the walkthrough file by file in the order listed, at least one step per file, and trace each file's changes in execution order within it. Only after every file has at least one step may you spend remaining steps going deeper into the most important files.`
+        : 'Produce a WalkthroughPlan for the pending code changes below. Walk the changed code path in execution order so a reviewer can follow exactly what the change does.',
+    );
+  } else {
+    parts.push(
+      'Produce a WalkthroughPlan for the selected code path below. Trace how data flows through it: from entry, through validation, into state changes, and out via persistence or return.',
+    );
+  }
+  parts.push(`Maximum ${maxSteps} steps across all files. Return ONLY the JSON object.`);
+  parts.push('');
+  parts.push(`## Language`);
+  parts.push(req.language ?? 'unknown (inferred)');
+  parts.push('');
+
+  parts.push('## Files');
+  for (const p of includedPaths) parts.push(headers.get(p)!);
+  if (skippedPaths.length > 0) {
+    parts.push(`(Omitted for prompt budget: ${skippedPaths.join(', ')})`);
   }
 
   if (req.selection) {
@@ -129,6 +141,9 @@ export function buildUserPrompt(req: WalkthroughRequest, maxSteps: number): stri
   parts.push('');
   parts.push('## Requirements');
   parts.push('- Steps must only reference files and line numbers present in the context above.');
+  if (includedPaths.length > 1) {
+    parts.push('- Every file listed above must appear in at least one step — a reviewer must not be left with an unexplained changed file.');
+  }
   parts.push('- Prefer fewer, meaningful steps over trivial ones; merge consecutive trivial lines.');
   parts.push('- Every step needs a concrete range; do not point at files as a whole.');
   return parts.join('\n');

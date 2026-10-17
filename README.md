@@ -22,7 +22,7 @@ Built for reviewing exactly the kind of code where being wrong is expensive — 
 ## Install
 
 - **Open VSX** (install from here until Marketplace review finishes): [bitvanes.bitvanes](https://open-vsx.org/extension/bitvanes/bitvanes)
-- **VS Code Marketplace** (pending Microsoft review — the listing still 404s): [bitvanes.bitvanes](https://marketplace.visualstudio.com/items?itemName=bitvanes.bitvanes)
+- **VS Code Marketplace** (not published yet — the publish token isn't configured, so the listing 404s): [bitvanes.bitvanes](https://marketplace.visualstudio.com/items?itemName=bitvanes.bitvanes)
 - **From source:** `npm ci && npm run compile`, then open this folder in VS Code and press F5
 - **Prebuilt vsix:** grab the latest from [Releases](https://github.com/kodr-pro/BitVanes/releases) and run `code --install-extension bitvanes-v<version>.vsix`
 
@@ -30,7 +30,7 @@ Built for reviewing exactly the kind of code where being wrong is expensive — 
 
 | Provider | Setup |
 |---|---|
-| **VS Code Copilot** (default on Marketplace installs only) | Sign in to GitHub Copilot. BitVanes uses the built-in Language Model API — no keys, no extra network config. This works only for installs from the VS Code Marketplace. Open VSX and VSIX installs cannot use Copilot as the default; configure an endpoint below. The Marketplace listing is still pending review. |
+| **VS Code Copilot** (default on Marketplace installs only) | Sign in to GitHub Copilot. BitVanes uses the built-in Language Model API — no keys, no extra network config. This works only for installs from the VS Code Marketplace. Open VSX and VSIX installs cannot use Copilot as the default; configure an endpoint below. The Marketplace listing is not published yet. |
 | **Local — Ollama / LM Studio / vLLM** | `ollama serve`, then set `bitvanes.llm.baseUrl` to `http://localhost:11434/v1` and `bitvanes.llm.modelId` to e.g. `qwen2.5-coder:14b`. Code never leaves your machine. |
 | **OpenAI / Anthropic / OpenRouter** | Run `BitVanes: Set API Key for External LLM Provider`, pick a preset, paste the key. Keys live in VS Code SecretStorage — never in settings files or dotfiles. |
 
@@ -48,11 +48,27 @@ Built for reviewing exactly the kind of code where being wrong is expensive — 
 | `BitVanes: Browse Steps & Explanations` | QuickPick browser with full narratives, state transitions, and security notes |
 | `BitVanes: Toggle Autoplay` | Auto-advance through the plan (manual navigation pauses it) |
 | `BitVanes: Set Walkthrough Style` | Audience tuning: Expert / Standard / Learner |
+| `BitVanes: Export Walkthrough Plan as JSON` | Save the current plan (steps, ranges, variable transitions, security notes) for scripts and agents |
+
+## Use it with agents
+
+Anything that can run a shell command can start a tour — so your coding agent
+can hand you a walkthrough of its own diff the moment it finishes:
+
+```bash
+code --open-url "vscode://bitvanes.bitvanes/walkthrough?scope=working-tree"
+```
+
+`scope` is `working-tree`, `staged`, or `instant` (local, no model); an
+optional `style=expert|standard|learner` tunes that run only. Drop the
+one-liner into your `AGENTS.md`, Cursor rules, or a Claude Code
+`PostToolUse` hook — [snippets here](https://bitvanes.com/guide/agents).
 
 ## Security model
 
 - API keys are stored via `vscode.SecretStorage` (OS keychain-backed). There is no setting that accepts a key, and keys are never logged.
 - The extension makes exactly these network calls: the language-model endpoint you configure, one-time localhost model-server detection (ports 11434/1234/8000) when provider is `auto`, and local `git` invocations. Nothing else phones home — no telemetry.
+- Deep links (`vscode://bitvanes.bitvanes/walkthrough?…`) are strictly validated — unknown scopes, styles, paths or authorities are rejected, and opening a link never writes files or changes settings. The handler adds no network surface; it only routes into the same pipeline as the palette commands.
 - Model output is treated as untrusted: it is escaped before rendering in hovers and the sidebar, and steps may only reference the files the walkthrough was generated from.
 - `git diff` runs with `--no-textconv` and `--no-ext-diff`, so repository-configured diff drivers are never executed.
 - Grammar binaries are vendored into the repo with pinned SHA-256 checksums (`scripts/fetch-grammars.mjs --check` verifies them in CI **and** at package time).
@@ -63,12 +79,14 @@ Built for reviewing exactly the kind of code where being wrong is expensive — 
 npm ci
 node scripts/fetch-grammars.mjs   # vendor grammars (checksum-pinned)
 npm run typecheck && npm run lint
-npm test                          # 85+ tests, incl. real tree-sitter WASM parses
+npm test                          # ~100 tests, incl. real tree-sitter WASM parses
+npm run test:coverage             # same suite with V8 coverage
 npm run compile                   # esbuild production bundle
 npm run package                   # vsce package
 ```
 
-Press F5 in VS Code to launch the Extension Development Host.
+Press F5 in VS Code to launch the Extension Development Host. Contributions
+welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 Docs and demo: https://bitvanes.com · Changes: [CHANGELOG.md](CHANGELOG.md)
 
