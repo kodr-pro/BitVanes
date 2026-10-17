@@ -24,4 +24,17 @@ describe('getWebviewContent', () => {
     const nonceCount = (html.match(/<script/g) ?? []).length;
     expect(nonceCount).toBe(1);
   });
+
+  it('ships the Files tab and per-file walkthrough affordances', () => {
+    expect(html).toContain('data-act="tab"');
+    expect(html).toContain('data-tab="files"');
+    expect(html).toContain('data-act="file-walk"');
+    expect(html).toContain('data-act="file-jump"');
+    expect(html).toContain("mode: 'file'");
+  });
+
+  it('drops the "guided tour" tagline — users know what they installed', () => {
+    expect(html).not.toContain('guided tour');
+    expect(html).not.toContain('didn&rsquo;t write');
+  });
 });

@@ -2,7 +2,7 @@
   "name": "bitvanes",
   "displayName": "BitVanes",
   "description": "Guided, step-by-step tours through diffs, AI-generated changes, and unfamiliar code — right inside VS Code.",
-  "version": "1.1.0",
+  "version": "1.0.2",
   "publisher": "bitvanes",
   "license": "Apache-2.0",
   "icon": "resources/icon.png",
@@ -62,6 +62,11 @@
       {
         "command": "bitvanes.walkthroughInstant",
         "title": "Instant Walkthrough of Changes (No AI)",
+        "category": "BitVanes"
+      },
+      {
+        "command": "bitvanes.walkthroughFile",
+        "title": "Walkthrough One Changed File…",
         "category": "BitVanes"
       },
       {

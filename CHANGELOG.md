@@ -4,12 +4,34 @@ All notable changes to BitVanes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
-## [1.1.0] — 2026-10-16
+## [1.0.2] — 2026-10-17
 
-The "agent-ready" release: BitVanes tours can now be started by whatever —
-or whoever — wrote the code.
+The multi-file release: change-set walkthroughs now cover every changed
+file, the new Files tab lets you see — and walk — each one, and BitVanes
+tours can now be started by whatever — or whoever — wrote the code.
+
+### Fixed
+- **Multi-file diffs and staged changes were walked as a single file.** The
+  model contract asked for one execution path, so tours of a staged change
+  set concentrated all steps on the largest file and silently skipped the
+  rest. The prompt now requires every included file to appear in at least
+  one step, ordered file by file, with per-file execution order — and says
+  so only when more than one file is actually in context.
+- Per-file coverage is now honest end to end: files beyond the prompt
+  budget are reported rather than implied.
 
 ### Added
+- **Files tab** in the BitVanes view: every changed/staged file in the
+  walkthrough with its git status, changed-line count, per-file step
+  progress, and click-to-jump to that file's steps. The step list is
+  grouped by file so transitions are visible as you walk.
+- **Per-file walkthrough** (`bitvanes.walkthroughFile`): pick one changed
+  file — from the Files tab ("walk this file") or the command palette —
+  and get a full-depth tour of just that file's pending changes (staged +
+  unstaged together, versus HEAD). Untracked files are walked as whole-file
+  additions.
+- `WalkthroughPlan.files` metadata in exported plan JSON (v1 payloads gain
+  an optional `files` array; older payloads remain valid).
 - **Deep links for agents, terminals and hooks:**
   `vscode://bitvanes.bitvanes/walkthrough?scope=working-tree|staged|instant`
   starts a tour via `code --open-url` from any shell, git hook, or coding
@@ -25,6 +47,9 @@ or whoever — wrote the code.
 - `npm run test:coverage` (adds `@vitest/coverage-v8` as a dev dependency).
 
 ### Changed
+- Refreshed sidebar UI: compact brand header replaces the tagline hero,
+  clearer start actions, and a segmented Tour/Files tab strip. Tagline
+  removed — you know why you installed it.
 - Tag releases now emit a visible GitHub Actions warning when `OVSX_PAT` or
   `VSCE_PAT` is unset, instead of silently skipping that registry publish.
 - A second walkthrough request while one is already generating is declined
@@ -35,6 +60,9 @@ or whoever — wrote the code.
   packaging toolchain. `npm audit` is clean.
 
 ### Notes
+- Numbered 1.0.2, not 1.1.0: the 1.1.0 work was never published — the
+  Marketplace and Open VSX listings still serve 1.0.1 — so this release
+  combines it with the multi-file work as the true successor to 1.0.1.
 - One-time ask: after the third completed walkthrough, BitVanes requests an
   Open VSX review once — ever — and never again. It is a local counter in
   extension state; BitVanes still has zero telemetry.

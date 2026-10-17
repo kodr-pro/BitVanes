@@ -41,7 +41,7 @@ export class WalkthroughSidebarProvider implements vscode.WebviewViewProvider {
           this.handlers.browse();
           break;
         case 'start':
-          if (m.mode) this.handlers.start(m.mode as SidebarStartMode);
+          if (m.mode) this.handlers.start(m.mode as SidebarStartMode, typeof m.path === 'string' ? m.path : undefined);
           break;
         case 'style':
           if (m.s) this.handlers.setStyle(m.s);
