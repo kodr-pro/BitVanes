@@ -113,6 +113,17 @@ export function toRelativePath(root: string, absPath: string): string {
   return rel.replace(/\\/g, '/');
 }
 
+/** `2/5 files` position label for multi-file tours; undefined for single-file tours. */
+export function filePositionLabel(steps: ReadonlyArray<{ filePath: string }>, current: number): string | undefined {
+  const total = new Set(steps.map((s) => s.filePath)).size;
+  if (total <= 1) return undefined;
+  const seen = new Set<string>();
+  for (let i = 0; i <= current && i < steps.length; i++) {
+    seen.add(steps[i]!.filePath);
+  }
+  return `${seen.size}/${total} files`;
+}
+
 export function numberLines(lines: readonly string[], from: number, to: number): string {
   const out: string[] = [];
   const width = String(to).length;

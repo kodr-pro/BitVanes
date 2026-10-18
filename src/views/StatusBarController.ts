@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import type { WalkthroughState } from '../director/EditorDirector';
 import { mdEscape, mdInline } from '../util/markdown';
+import { filePositionLabel } from '../util/text';
 
 export class StatusBarController implements vscode.Disposable {
   private readonly prev: vscode.StatusBarItem;
@@ -46,7 +47,10 @@ export class StatusBarController implements vscode.Disposable {
       this.hide();
       return;
     }
-    this.counter.text = `BitVanes $(list-ordered) ${state.current + 1}/${state.plan.totalSteps}`;
+    const filePos = filePositionLabel(state.plan.steps, state.current);
+    this.counter.text = filePos
+      ? `BitVanes $(list-ordered) ${state.current + 1}/${state.plan.totalSteps} · $(file) ${filePos}`
+      : `BitVanes $(list-ordered) ${state.current + 1}/${state.plan.totalSteps}`;
     this.counter.tooltip = new vscode.MarkdownString(
       `**${mdEscape(state.plan.summary.replace(/\n/g, ' '))}**\n\nEntry: \`${mdInline(state.plan.entryPoint)}\``,
     );

@@ -193,7 +193,7 @@ export function getWebviewContent(opts: { nonce: string; cspSource: string }): s
 <script nonce="${nonce}">
 (function () {
   var vscode = acquireVsCodeApi();
-  var state = { plan: null, current: 0, autoplay: false, style: 'standard', tab: 'tour' };
+  var state = { plan: null, current: 0, autoplay: false, style: 'standard', tab: 'tour', modelStatus: null };
 
   var I = {
     chevL: '<svg viewBox="0 0 16 16"><path d="M10.5 3 6 8l4.5 5 1-1L8 8l3.5-4z"/></svg>',
@@ -207,6 +207,7 @@ export function getWebviewContent(opts: { nonce: string; cspSource: string }): s
     exit: '<svg viewBox="0 0 16 16"><path d="M8 8.7 4.9 11.8l-.7-.7L7.3 8 4.2 4.9l.7-.7L8 7.3l3.1-3.1.7.7L8.7 8l3.1 3.1-.7.7L8 8.7z"/></svg>',
     list: '<svg viewBox="0 0 16 16"><path d="M2.5 3.5h11V5h-11zM2.5 7.5h11V9h-11zM2.5 11.5h7V13h-7z"/></svg>',
     file: '<svg viewBox="0 0 16 16"><path d="M9.5 1H3.5C2.7 1 2 1.7 2 2.5v11c0 .8.7 1.5 1.5 1.5h9c.8 0 1.5-.7 1.5-1.5V5.5L9.5 1zm0 1.6L12.4 5.5H9.5V2.6zM12.5 14h-9v-11h5v3.5h4V14z"/></svg>',
+    commit: '<svg viewBox="0 0 16 16"><rect x="1" y="7.25" width="5.2" height="1.5" rx="0.4"/><rect x="9.8" y="7.25" width="5.2" height="1.5" rx="0.4"/><circle cx="8" cy="8" r="2.6"/></svg>',
     stepIn: '<svg viewBox="0 0 16 16"><path d="M2 3h5v1.4H3.4v7.2H7V13H2V3zm7.6 1.4L8.8 5.2 10.6 7H5.5v2h5.1l-1.8 1.8.8.8L13.3 8l-3.7-3.6z"/></svg>'
   };
 
@@ -238,38 +239,86 @@ export function getWebviewContent(opts: { nonce: string; cspSource: string }): s
   document.addEventListener('click', function (e) {
     var el = e.target.closest('[data-act]');
     if (!el) return;
-    var act = el.getAttribute('data-act');
-    if (act === 'next') vscode.postMessage({ t: 'next' });
-    else if (act === 'prev') vscode.postMessage({ t: 'prev' });
-    else if (act === 'jump') vscode.postMessage({ t: 'jump', i: parseInt(el.getAttribute('data-i'), 10) });
-    else if (act === 'autoplay') vscode.postMessage({ t: 'autoplay' });
-    else if (act === 'exit') vscode.postMessage({ t: 'exit' });
-    else if (act === 'browse') vscode.postMessage({ t: 'browse' });
-    else if (act === 'start') vscode.postMessage({ t: 'start', mode: el.getAttribute('data-mode') });
-    else if (act === 'style') vscode.postMessage({ t: 'style', s: el.getAttribute('data-s') });
-    else if (act === 'tab') {
-      state.tab = el.getAttribute('data-tab');
-      render();
-    } else if (act === 'file-jump') {
-      var fi = el.getAttribute('data-i');
-      if (fi !== null && fi !== '') {
-        vscode.postMessage({ t: 'jump', i: parseInt(fi, 10) });
-        state.tab = 'tour';
+    switch (el.getAttribute('data-act')) {
+      case 'next':
+        vscode.postMessage({ t: 'next' });
+        break;
+      case 'prev':
+        vscode.postMessage({ t: 'prev' });
+        break;
+      case 'jump':
+        vscode.postMessage({ t: 'jump', i: parseInt(el.getAttribute('data-i'), 10) });
+        break;
+      case 'autoplay':
+        vscode.postMessage({ t: 'autoplay' });
+        break;
+      case 'exit':
+        vscode.postMessage({ t: 'exit' });
+        break;
+      case 'browse':
+        vscode.postMessage({ t: 'browse' });
+        break;
+      case 'start':
+        vscode.postMessage({ t: 'start', mode: el.getAttribute('data-mode') });
+        break;
+      case 'style':
+        vscode.postMessage({ t: 'style', s: el.getAttribute('data-s') });
+        break;
+      case 'tab':
+        state.tab = el.getAttribute('data-tab');
         render();
+        break;
+      case 'file-jump': {
+        var fi = el.getAttribute('data-i');
+        if (fi !== null && fi !== '') {
+          vscode.postMessage({ t: 'jump', i: parseInt(fi, 10) });
+          state.tab = 'tour';
+          render();
+        }
+        break;
       }
-    } else if (act === 'file-walk') {
-      vscode.postMessage({ t: 'start', mode: 'file', path: el.getAttribute('data-path') });
+      case 'file-walk':
+        vscode.postMessage({ t: 'start', mode: 'file', path: el.getAttribute('data-path') });
+        break;
+      case 'configure':
+        vscode.postMessage({ t: 'configure' });
+        break;
     }
   });
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'ArrowRight') vscode.postMessage({ t: 'next' });
-    else if (e.key === 'ArrowLeft') vscode.postMessage({ t: 'prev' });
+    switch (e.key) {
+      case 'ArrowRight':
+        vscode.postMessage({ t: 'next' });
+        break;
+      case 'ArrowLeft':
+        vscode.postMessage({ t: 'prev' });
+        break;
+      case 'Escape':
+        vscode.postMessage({ t: 'exit' });
+        break;
+    }
   });
   window.addEventListener('message', function (e) {
     var m = e.data || {};
-    if (m.t === 'state') { state.plan = m.plan; state.current = m.current; render(); }
-    else if (m.t === 'autoplay') { state.autoplay = m.on; render(); }
-    else if (m.t === 'style') { state.style = m.s; render(); }
+    switch (m.t) {
+      case 'state':
+        state.plan = m.plan;
+        state.current = m.current;
+        render();
+        break;
+      case 'autoplay':
+        state.autoplay = m.on;
+        render();
+        break;
+      case 'style':
+        state.style = m.s;
+        render();
+        break;
+      case 'modelStatus':
+        state.modelStatus = m.status;
+        if (!state.plan) render();
+        break;
+    }
   });
 
   function render() {
@@ -284,10 +333,12 @@ export function getWebviewContent(opts: { nonce: string; cspSource: string }): s
     var h = '';
     h += '<div class="card hero"><div class="row" style="justify-content:center">' + logoSvg(40);
     h += '<span class="brandname">BitVanes</span></div></div>';
+    h += modelStatusCard();
     h += '<div class="sect">Start</div>';
     h += '<div class="card stack">';
     h += '<button data-act="start" data-mode="instant">' + I.zap + '<span class="lab">Instant walkthrough<span class="sub">Local AST analysis — no AI, under a second</span></span></button>';
     h += '<button data-act="start" data-mode="diff">' + I.diff + '<span class="lab">Working tree changes<span class="sub">Every pending file, walked file by file</span></span></button>';
+    h += '<button data-act="start" data-mode="commit">' + I.commit + '<span class="lab">Last commit<span class="sub">What the most recent commit introduced</span></span></button>';
     h += '<button data-act="start" data-mode="staged">' + I.diff + '<span class="lab">Staged changes<span class="sub">What you are about to commit</span></span></button>';
     h += '<button data-act="start" data-mode="file">' + I.file + '<span class="lab">One changed file…<span class="sub">Pick a file and walk it in depth</span></span></button>';
     h += '<button data-act="start" data-mode="selection">' + I.cursor + '<span class="lab">Code path at cursor<span class="sub">Trace a function from entry to return</span></span></button>';
@@ -295,6 +346,21 @@ export function getWebviewContent(opts: { nonce: string; cspSource: string }): s
     h += '<div class="card"><div class="row spread"><span class="muted">Style</span>';
     h += styleSeg();
     h += '</div><div class="kv muted">Explanations tuned per audience — Learner explains syntax &amp; jargon for AI-generated code.</div></div>';
+    return h;
+  }
+
+  function modelStatusCard() {
+    var st = state.modelStatus;
+    if (!st) return '';
+    var ready = st.state === 'ready';
+    var dotColor = ready
+      ? 'background: var(--vscode-charts-green, #59ba7a);'
+      : 'background: var(--vscode-editorWarning-foreground, #f59e0b);';
+    var h = '<div class="card row" title="' + esc(st.label) + '">';
+    h += '<span class="dot" style="' + dotColor + ' flex:none;"></span>';
+    h += '<span class="grow" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(st.label) + '</span>';
+    h += '<button class="sec mini" data-act="configure" title="Choose provider, endpoint and model">' + (ready ? 'Change' : 'Set up') + '</button>';
+    h += '</div>';
     return h;
   }
 

@@ -15,6 +15,8 @@ export interface WalkthroughRequest {
   selection?: { path: string; range: Range; note?: string };
   /** How many changed files the prompt actually covers (truncation honesty). */
   coverage?: { included: number; total: number };
+  /** Extra task context, e.g. "changes introduced by commit X" for commit tours. */
+  note?: string;
 }
 
 const MAX_FILE_CHARS = 12_000;
@@ -116,6 +118,7 @@ export function buildUserPrompt(req: WalkthroughRequest, maxSteps: number): stri
       'Produce a WalkthroughPlan for the selected code path below. Trace how data flows through it: from entry, through validation, into state changes, and out via persistence or return.',
     );
   }
+  if (req.note) parts.push(req.note);
   parts.push(`Maximum ${maxSteps} steps across all files. Return ONLY the JSON object.`);
   parts.push('');
   parts.push(`## Language`);

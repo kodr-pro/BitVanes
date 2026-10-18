@@ -4,6 +4,62 @@ All notable changes to BitVanes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [1.0.3] — 2026-10-18
+
+The "walk the commit" release: tours of committed work, a welcome screen
+that tells you whether a model is ready, and guards that keep running tours
+honest. No breaking changes — every addition is additive.
+
+### Added
+- **Walkthrough Last Commit…** (`bitvanes.walkthroughCommit`): pick one of
+  the last 20 commits (subject, author, date) and tour everything it
+  introduced, diffed against its first parent — the root commit included
+  (shown as whole-file additions). Also a start button on the welcome
+  screen, where it walks HEAD directly. The Files tab, per-file coverage and
+  the multi-file prompt contract all work for commit tours exactly as they
+  do for pending changes.
+- **Deep-link scope `commit`:**
+  `vscode://bitvanes.bitvanes/walkthrough?scope=commit` walks HEAD — the
+  natural post-commit hook for agents (`style=` override still applies).
+  Validation stays strict: the scope is enum-checked like the others, and
+  no new parameters are accepted.
+- **Model readiness on the welcome screen:** a status card shows what will
+  serve AI walkthroughs right now — VS Code Copilot, the configured
+  endpoint, or an auto-detected local server (Ollama / LM Studio / vLLM) —
+  with a Set-up/Change button that opens the provider flow. Probes are
+  cached and refresh only when `bitvanes.llm` settings change; they never
+  run per render.
+- **"Set up a model" action button** on no-model errors: the dead-end
+  "No language model configured" failure now routes straight into
+  `bitvanes.setApiKey` instead of leaving new users to find it themselves.
+- **Stale-tour guard:** if a file in the running walkthrough is edited
+  mid-tour, BitVanes notices and offers **Regenerate** (one prompt per
+  tour, re-runs the same scope). Decorations already track live edits;
+  this keeps re-jumps and the plan honest after the code drifts.
+- Exported plan JSON gains optional provenance fields — `provider`,
+  `style`, `generatedAt` — alongside the export timestamp. Payloads stay
+  `bitvanes.walkthroughPlan` v1; older readers ignore the new keys.
+
+### Fixed
+- **Multi-root workspaces resolve diffs against the wrong folder.** The
+  workspace root was always the first folder in the list; it now prefers
+  the folder containing the active editor, falling back to the first.
+- Escape now exits the walkthrough from the BitVanes sidebar (previously
+  it only worked while an editor had focus).
+
+### Changed
+- The status-bar counter shows the file position on multi-file tours
+  (`BitVanes 3/12 · 2/5 files`), so you always know which file you are in.
+- The model prompt names the walked commit (short hash + subject) on
+  commit tours, so the narrative frames the change as committed work.
+
+### Notes
+- Commit walkthroughs read file content from the working tree (new-side
+  line numbers come from the commit). Right after committing — the
+  dominant flow — the two are identical; on older commits whose files have
+  since changed, ranges land on the nearest statement rather than the
+  exact original line.
+
 ## [1.0.2] — 2026-10-17
 
 The multi-file release: change-set walkthroughs now cover every changed

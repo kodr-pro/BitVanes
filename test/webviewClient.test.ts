@@ -7,6 +7,7 @@ interface Stubs {
   posted: Array<Record<string, unknown>>;
   message(e: { data: unknown }): void;
   click(el: { getAttribute: (k: string) => string | null }): void;
+  key(k: string): void;
 }
 
 /** Execute the webview client script with a minimal DOM stub and return handles. */
@@ -37,6 +38,9 @@ function bootClient(): Stubs {
     },
     click: (el) => {
       for (const cb of handlers['click'] ?? []) cb({ target: el });
+    },
+    key: (k) => {
+      for (const cb of handlers['keydown'] ?? []) cb({ key: k });
     },
   };
 }
@@ -70,6 +74,40 @@ describe('webview client rendering', () => {
     expect(client.root.innerHTML).toContain('BitVanes');
     expect(client.root.innerHTML).toContain('data-mode="staged"');
     expect(client.root.innerHTML).not.toContain('guided tour');
+  });
+
+  it('offers the last-commit start mode on the welcome screen', () => {
+    const client = bootClient();
+    expect(client.root.innerHTML).toContain('data-mode="commit"');
+    client.click(clickTarget({ 'data-act': 'start', 'data-mode': 'commit' }));
+    expect(client.posted).toContainEqual({ t: 'start', mode: 'commit' });
+  });
+
+  it('renders the model status card with a configure action', () => {
+    const client = bootClient();
+    client.message({ data: { t: 'modelStatus', status: { state: 'none', label: 'No model set up — instant tours still work' } } });
+    expect(client.root.innerHTML).toContain('No model set up');
+    expect(client.root.innerHTML).toContain('data-act="configure"');
+    client.click(clickTarget({ 'data-act': 'configure' }));
+    expect(client.posted).toContainEqual({ t: 'configure' });
+  });
+
+  it('shows the ready state without replacing the start actions', () => {
+    const client = bootClient();
+    client.message({ data: { t: 'modelStatus', status: { state: 'ready', label: 'Model: VS Code Copilot' } } });
+    expect(client.root.innerHTML).toContain('Model: VS Code Copilot');
+    expect(client.root.innerHTML).toContain('data-mode="instant"');
+  });
+
+  it('exits the walkthrough on Escape from the sidebar', () => {
+    const client = bootClient();
+    client.key('Escape');
+    expect(client.posted).toContainEqual({ t: 'exit' });
+    // arrows still step
+    client.key('ArrowRight');
+    expect(client.posted).toContainEqual({ t: 'next' });
+    client.key('ArrowLeft');
+    expect(client.posted).toContainEqual({ t: 'prev' });
   });
 
   it('renders the tour tab with file group headers for multi-file plans', () => {

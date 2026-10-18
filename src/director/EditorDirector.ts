@@ -231,7 +231,9 @@ export class EditorDirector implements vscode.Disposable {
     }
   }
 
-  private resolveAbs(filePath: string): string | undefined {
+  /** Resolve a plan filePath to an absolute path contained in the workspace
+   *  root — also used by the host to match document edits against steps. */
+  resolveAbs(filePath: string): string | undefined {
     const norm = filePath.replace(/\\/g, '/');
     const root = this.getRoot();
     if (path.isAbsolute(norm)) {

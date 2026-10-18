@@ -40,6 +40,19 @@ describe('buildUserPrompt multi-file coverage', () => {
     expect(prompt).not.toContain('cover EVERY one of them');
   });
 
+  it('appends the commit context note for commit tours', () => {
+    const prompt = buildUserPrompt(
+      {
+        ...req([file('src/a.ts')]),
+        note: 'Context: these are the changes the last commit introduced — "fix rounding" (diffed against its first parent).',
+      },
+      12,
+    );
+    expect(prompt).toContain('Produce a WalkthroughPlan for the pending code changes below');
+    expect(prompt).toContain('changes the last commit introduced');
+    expect(prompt).toContain('first parent');
+  });
+
   it('counts only budget-included files toward the coverage contract', () => {
     // Six files at the per-file snippet cap (12k each) blow the 56k total
     // budget, so the tail of the list is omitted and must not be promised.

@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import type { WalkthroughState } from '../director/EditorDirector';
+import type { ModelStatusSummary } from '../llm/LlmManager';
 import { getWebviewContent } from './getWebviewContent';
 import type { InboundMessage, SidebarHandlers, SidebarStartMode } from './sidebarProtocol';
 
@@ -10,6 +11,7 @@ export class WalkthroughSidebarProvider implements vscode.WebviewViewProvider {
   private lastState: WalkthroughState | null = null;
   private autoplay = false;
   private style = 'standard';
+  private modelStatus: ModelStatusSummary | null = null;
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -46,6 +48,9 @@ export class WalkthroughSidebarProvider implements vscode.WebviewViewProvider {
         case 'style':
           if (m.s) this.handlers.setStyle(m.s);
           break;
+        case 'configure':
+          this.handlers.configure();
+          break;
       }
     });
     this.sync();
@@ -66,6 +71,11 @@ export class WalkthroughSidebarProvider implements vscode.WebviewViewProvider {
     this.post({ t: 'style', s: style });
   }
 
+  setModelStatus(status: ModelStatusSummary | null): void {
+    this.modelStatus = status;
+    this.post({ t: 'modelStatus', status });
+  }
+
   reveal(): void {
     if (this.view) {
       this.view.show(false);
@@ -78,6 +88,7 @@ export class WalkthroughSidebarProvider implements vscode.WebviewViewProvider {
     this.post({ t: 'state', plan: this.lastState?.plan ?? null, current: this.lastState?.current ?? 0 });
     this.post({ t: 'autoplay', on: this.autoplay });
     this.post({ t: 'style', s: this.style });
+    if (this.modelStatus) this.post({ t: 'modelStatus', status: this.modelStatus });
   }
 
   private post(message: unknown): void {
