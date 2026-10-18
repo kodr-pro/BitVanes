@@ -48,6 +48,10 @@ function isLoopback(host: string): boolean {
   return h === 'localhost' || h === '::1' || h.startsWith('127.');
 }
 
+/** Errors that mean "no usable model" — these get a Set-up-a-model action button. */
+const MODEL_SETUP_HINT_RE =
+  /No language model configured|Set bitvanes\.llm\.baseUrl|No VS Code language models available/;
+
 let director: EditorDirector | undefined;
 let autoplayTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -95,6 +99,9 @@ export function activate(context: vscode.ExtensionContext): void {
         .update('style', s, vscode.ConfigurationTarget.Global);
       sidebar.setStyle(s);
     },
+    configure: () => {
+      void vscode.commands.executeCommand('bitvanes.setApiKey');
+    },
   });
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(WalkthroughSidebarProvider.viewId, sidebar, {
@@ -137,11 +144,45 @@ export function activate(context: vscode.ExtensionContext): void {
     if (!st) stopAutoplay();
   });
 
+  // Model readiness for the welcome screen: probed once (cached inside
+  // LlmManager — localhost detection never runs per render) and refreshed
+  // only when bitvanes.llm settings change.
+  const pushModelStatus = async () => {
+    try {
+      sidebar.setModelStatus(await llm.probeStatus());
+    } catch {
+      sidebar.setModelStatus(null);
+    }
+  };
+  void pushModelStatus();
+
+  // Stale-tour guard: walkthrough ranges are snapped at generation time, so
+  // edits to a walked file can silently drift the spotlight onto wrong lines.
+  // Decorations track live edits, but re-jumps and honesty do not — offer a
+  // one-click regenerate, once per tour.
+  const staleWatch = vscode.workspace.onDidChangeTextDocument((e) => {
+    const st = director?.state;
+    if (!st || stalePrompted || e.document.uri.scheme !== 'file') return;
+    const changed = e.document.uri.fsPath;
+    const touched = st.plan.steps.some((s) => director?.resolveAbs(s.filePath) === changed);
+    if (!touched) return;
+    stalePrompted = true;
+    void vscode.window
+      .showInformationMessage('BitVanes: the walked code changed — steps may no longer line up.', 'Regenerate')
+      .then((pick) => {
+        if (pick === 'Regenerate' && lastRun) void runPipeline(lastRun.kind, undefined, lastRun.arg);
+      });
+  });
+
   const readText = (absPath: string) => fs.readFile(absPath, 'utf8');
 
+  type PipelineKind = 'diff' | 'staged' | 'selection' | 'instant' | 'file' | 'commit';
   let pipelineBusy = false;
+  let lastRun: { kind: PipelineKind; arg?: string } | undefined;
+  let stalePrompted = false;
+  let lastPlanMeta: { provider: string; style: string; generatedAt: string } | undefined;
   const runPipeline = async (
-    kind: 'diff' | 'staged' | 'selection' | 'instant' | 'file',
+    kind: PipelineKind,
     styleOverride?: WalkthroughStyle,
     filePath?: string,
   ) => {
@@ -150,6 +191,7 @@ export function activate(context: vscode.ExtensionContext): void {
       return;
     }
     pipelineBusy = true;
+    lastRun = { kind, arg: filePath };
     const t0 = Date.now();
     stopAutoplay();
     try {
@@ -174,6 +216,8 @@ export function activate(context: vscode.ExtensionContext): void {
             );
             plan.files = summarizePlanFiles(files, plan, root);
             sidebar.reveal();
+            stalePrompted = false;
+            lastPlanMeta = { provider: 'instant (local AST analysis)', style: 'n/a', generatedAt: new Date().toISOString() };
             director?.start(plan);
             const secs = ((Date.now() - t0) / 1000).toFixed(1);
             const covered = Math.min(files.length, LOCAL_MAX_FILES);
@@ -196,9 +240,18 @@ export function activate(context: vscode.ExtensionContext): void {
           } else {
             if (!root) throw new UserError('Open a folder to walkthrough its changes.');
             if (!(await GitProvider.isGitRepo(root))) throw new UserError('This workspace is not a Git repository.');
-            progress.report({ message: 'reading diff…' });
             let files: DiffFile[];
-            if (kind === 'file') {
+            if (kind === 'commit') {
+              const ref = filePath ?? 'HEAD';
+              const refLabel = ref === 'HEAD' ? 'the last commit' : `commit ${ref}`;
+              progress.report({ message: `reading ${refLabel}…` });
+              try {
+                files = await GitProvider.diffCommit(root, ref);
+              } catch {
+                throw new UserError(`Could not read ${refLabel} — the repository may have no commits yet.`);
+              }
+              if (files.length === 0) throw new UserError(`No changes were introduced by ${refLabel} to walkthrough.`);
+            } else if (kind === 'file') {
               if (!filePath) throw new UserError('No file selected to walkthrough.');
               files = await GitProvider.diffFile(root, filePath);
               if (files.length === 0) {
@@ -207,6 +260,7 @@ export function activate(context: vscode.ExtensionContext): void {
                 files = [untracked];
               }
             } else {
+              progress.report({ message: 'reading diff…' });
               files = await GitProvider.diff(root, kind === 'staged');
               if (files.length === 0) {
                 throw new UserError(kind === 'staged' ? 'No staged changes to walkthrough.' : 'No working-tree changes to walkthrough.');
@@ -216,6 +270,17 @@ export function activate(context: vscode.ExtensionContext): void {
             allowedPaths = new Set(files.map((f) => toRelativePath(root, f.absPath)));
             const contextLines = vscode.workspace.getConfiguration('bitvanes.llm').get<number>('contextLines', 6);
             request = await buildDiffRequest(files, resolver, readText, contextLines, root);
+            if (kind === 'commit') {
+              const ref = filePath ?? 'HEAD';
+              try {
+                const info = await GitProvider.commitInfo(root, ref);
+                if (info) {
+                  request.note = `Context: these are the changes ${ref === 'HEAD' ? 'the last commit' : `commit ${info.short}`} introduced — "${info.subject}" (diffed against its first parent).`;
+                }
+              } catch {
+                // subject is cosmetic — continue without it
+              }
+            }
           }
 
           progress.report({ message: 'asking the model…' });
@@ -255,6 +320,8 @@ export function activate(context: vscode.ExtensionContext): void {
           }
 
           sidebar.reveal();
+          stalePrompted = false;
+          lastPlanMeta = { provider, style, generatedAt: new Date().toISOString() };
           director?.start(plan);
           const secs = ((Date.now() - t0) / 1000).toFixed(1);
           const cov =
@@ -272,6 +339,10 @@ export function activate(context: vscode.ExtensionContext): void {
       const msg = err instanceof UserError || err instanceof Error ? err.message : String(err);
       if (err instanceof PlanValidationError) {
         void vscode.window.showErrorMessage(`BitVanes: model output invalid — ${err.message}`);
+      } else if (err instanceof Error && MODEL_SETUP_HINT_RE.test(msg)) {
+        void vscode.window.showErrorMessage(`BitVanes: ${msg}`, 'Set up a model').then((pick) => {
+          if (pick === 'Set up a model') void vscode.commands.executeCommand('bitvanes.setApiKey');
+        });
       } else {
         void vscode.window.showErrorMessage(`BitVanes: ${msg}`);
       }
@@ -306,6 +377,37 @@ export function activate(context: vscode.ExtensionContext): void {
   register('bitvanes.walkthroughStagedDiff', () => runPipeline('staged'));
   register('bitvanes.walkthroughSelection', () => runPipeline('selection'));
   register('bitvanes.walkthroughInstant', () => runPipeline('instant'));
+  register('bitvanes.walkthroughCommit', async () => {
+    const root = GitProvider.workspaceRoot();
+    if (!root) {
+      void vscode.window.showInformationMessage('BitVanes: open a folder to walkthrough its commits.');
+      return;
+    }
+    if (!(await GitProvider.isGitRepo(root))) {
+      void vscode.window.showInformationMessage('BitVanes: this workspace is not a Git repository.');
+      return;
+    }
+    let commits: Awaited<ReturnType<typeof GitProvider.recentCommits>> = [];
+    try {
+      commits = await GitProvider.recentCommits(root, 20);
+    } catch {
+      commits = [];
+    }
+    if (commits.length === 0) {
+      void vscode.window.showInformationMessage('BitVanes: this repository has no commits yet.');
+      return;
+    }
+    const picked = await vscode.window.showQuickPick(
+      commits.map((c) => ({
+        label: `$(git-commit) ${c.subject}`,
+        description: `${c.short} · ${c.author}`,
+        detail: `${c.date} — walkthrough the changes this commit introduced`,
+        ref: c.hash,
+      })),
+      { placeHolder: 'Walkthrough which commit?', matchOnDescription: true, ignoreFocusOut: true },
+    );
+    if (picked) void runPipeline('commit', undefined, picked.ref);
+  });
   register('bitvanes.walkthroughFile', async () => {
     const root = GitProvider.workspaceRoot();
     if (!root) {
@@ -470,6 +572,10 @@ export function activate(context: vscode.ExtensionContext): void {
       kind: 'bitvanes.walkthroughPlan',
       version: 1,
       exportedAt: new Date().toISOString(),
+      // Optional provenance fields (additive; v1 readers ignore unknown keys).
+      ...(lastPlanMeta?.provider !== undefined ? { provider: lastPlanMeta.provider } : {}),
+      ...(lastPlanMeta?.style !== undefined ? { style: lastPlanMeta.style } : {}),
+      ...(lastPlanMeta?.generatedAt !== undefined ? { generatedAt: lastPlanMeta.generatedAt } : {}),
       plan: st.plan,
     };
     await fs.writeFile(target.fsPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
@@ -525,6 +631,13 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
     vscode.window.registerUriHandler({
       handleUri: (uri) => void handleExternalUri(uri),
+    }),
+    staleWatch,
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('bitvanes.llm')) {
+        llm.invalidateStatusCaches();
+        void pushModelStatus();
+      }
     }),
   );
 

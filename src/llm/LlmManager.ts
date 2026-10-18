@@ -144,8 +144,15 @@ function preferenceScore(model: vscode.LanguageModelChat): number {
   return 0;
 }
 
+export interface ModelStatusSummary {
+  state: 'ready' | 'none';
+  /** One-line, human-readable summary of what will serve AI walkthroughs. */
+  label: string;
+}
+
 export class LlmManager {
   private lmClient: VscodeLmClient | null = null;
+  private localProbe: Promise<{ url: string; label: string; modelId: string } | null> | null = null;
 
   constructor(private readonly secrets: vscode.SecretStorage, private readonly globalState: vscode.Memento) {}
 
@@ -273,6 +280,68 @@ export class LlmManager {
 
   listStored(): string[] {
     return this.globalState.get<string[]>('bitvanes.storedApiKeys', []);
+  }
+
+  /**
+   * Cached localhost model-server detection for status displays. A negative
+   * result is not cached — the server may be started any moment — but the
+   * probe runs at most once per invalidation (config change), never per render.
+   */
+  private detectLocalCached(): Promise<{ url: string; label: string; modelId: string } | null> {
+    if (!this.localProbe) {
+      const probe = detectLocalModelServer();
+      this.localProbe = probe;
+      void probe.then(
+        (found) => {
+          if (!found) this.localProbe = null;
+        },
+        () => {
+          this.localProbe = null;
+        },
+      );
+    }
+    return this.localProbe;
+  }
+
+  /** Drop cached probes so the next status read re-detects (after config edits). */
+  invalidateStatusCaches(): void {
+    this.localProbe = null;
+  }
+
+  private async copilotAvailable(): Promise<boolean> {
+    if (!this.lmClient) this.lmClient = new VscodeLmClient();
+    try {
+      return await this.lmClient.available();
+    } catch {
+      return false;
+    }
+  }
+
+  /** What will serve AI walkthroughs right now — for the welcome screen. */
+  async probeStatus(): Promise<ModelStatusSummary> {
+    const cfg = vscode.workspace.getConfiguration('bitvanes.llm');
+    const provider = cfg.get<string>('provider', 'auto');
+    const candidates: string[] = [];
+
+    if (provider === 'auto' || provider === 'vscode-lm') {
+      if (await this.copilotAvailable()) candidates.push('VS Code Copilot');
+    }
+    if (provider === 'auto' || provider === 'openai-compatible') {
+      const baseUrl = cfg.get<string>('baseUrl', '');
+      const modelId = cfg.get<string>('modelId', '');
+      if (baseUrl && modelId) {
+        candidates.push(`${modelId} @ ${hostOf(baseUrl)}`);
+      } else if (provider === 'auto') {
+        const local = await this.detectLocalCached();
+        if (local) candidates.push(`${local.label} — ${local.modelId} (detected)`);
+      }
+    }
+
+    if (candidates.length > 0) return { state: 'ready', label: `Model: ${candidates.join(' · ')}` };
+    if (provider === 'vscode-lm') {
+      return { state: 'none', label: 'Copilot unavailable — sign in, or switch provider' };
+    }
+    return { state: 'none', label: 'No model set up — instant tours still work' };
   }
 
   private secretKey(origin: string): string {

@@ -13,6 +13,18 @@ export type { DiffFile, DiffHunk } from './pure';
 const MAX_UNTRACKED_FILES = 50;
 const MAX_UNTRACKED_BYTES = 2_000_000;
 
+/** One entry of the recent-commit picker. */
+export interface CommitEntry {
+  /** Full hash — unambiguous for later git invocations. */
+  hash: string;
+  /** Abbreviated hash for display. */
+  short: string;
+  author: string;
+  /** YYYY-MM-DD (git `--date=short`). */
+  date: string;
+  subject: string;
+}
+
 export interface SelectionTarget {
   filePath: string;
   absPath: string;
@@ -54,8 +66,21 @@ export class GitProvider {
   }
 
   static workspaceRoot(): string | undefined {
-    const folder = vscode.workspace.workspaceFolders?.find((f) => f.uri.scheme === 'file');
-    return folder?.uri.fsPath;
+    const folders = vscode.workspace.workspaceFolders?.filter((f) => f.uri.scheme === 'file');
+    if (!folders || folders.length === 0) return undefined;
+    // Multi-root workspaces: prefer the folder containing the active editor so
+    // diffs resolve against the repo the user is actually looking at, not just
+    // the first folder in the list.
+    const active = vscode.window.activeTextEditor?.document.uri;
+    if (active && active.scheme === 'file') {
+      const abs = active.fsPath;
+      const match = folders.find((f) => {
+        const root = f.uri.fsPath.replace(/[\\/]+$/, '');
+        return abs === root || abs.startsWith(root + path.sep);
+      });
+      if (match) return match.uri.fsPath;
+    }
+    return folders[0]!.uri.fsPath;
   }
 
   static async isGitRepo(root: string): Promise<boolean> {
@@ -118,6 +143,46 @@ export class GitProvider {
       .map((f) => ({ ...f, absPath: path.resolve(base, f.path) }));
   }
 
+  /** The `limit` most recent commits, newest first, for the picker. */
+  static async recentCommits(root: string, limit = 20): Promise<CommitEntry[]> {
+    const out = await GitProvider.exec(
+      ['log', `-n`, String(limit), '--date=short', `--pretty=format:${COMMIT_FORMAT}`],
+      root,
+    );
+    return parseCommitLines(out);
+  }
+
+  /** Subject and metadata for a single ref (e.g. HEAD). */
+  static async commitInfo(root: string, ref: string): Promise<CommitEntry | undefined> {
+    const out = await GitProvider.exec(
+      ['show', '-s', '--date=short', `--pretty=format:${COMMIT_FORMAT}`, ref],
+      root,
+    );
+    return parseCommitLines(out)[0];
+  }
+
+  /**
+   * Changes introduced by one commit — its diff against the first parent.
+   * The root commit (no parent) falls back to `diff-tree --root -p`, which
+   * emits the whole commit as additions. New-side line numbers refer to the
+   * file content at that commit.
+   */
+  static async diffCommit(root: string, ref: string): Promise<DiffFile[]> {
+    // Same hardening as the working-tree diff: never execute repo-configured
+    // textconv or external diff drivers.
+    const hardening = ['--no-textconv', '--no-ext-diff', '--unified=0', '--no-color'];
+    let out: string;
+    try {
+      out = await GitProvider.exec(['diff', ...hardening, `${ref}~1`, ref], root);
+    } catch {
+      out = await GitProvider.exec(['diff-tree', '--root', '-p', ...hardening, ref], root);
+    }
+    const base = (await GitProvider.repoRoot(root)) ?? root;
+    return parseUnifiedDiff(out)
+      .filter((f) => f.hunks.length > 0)
+      .map((f) => ({ ...f, absPath: path.resolve(base, f.path) }));
+  }
+
   /** A brand-new (untracked) file as a whole-file addition DiffFile, or undefined. */
   static async untrackedFile(root: string, relPath: string): Promise<DiffFile | undefined> {
     const base = (await GitProvider.repoRoot(root)) ?? root;
@@ -160,6 +225,23 @@ export class GitProvider {
     }
     return files;
   }
+}
+
+/** %x1f (unit separator) — subjects may contain tabs, never this. */
+const COMMIT_FORMAT = '%H%x1f%h%x1f%an%x1f%ad%x1f%s';
+
+function parseCommitLines(out: string): CommitEntry[] {
+  return out
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '')
+    .map((line) => {
+      const parts = line.split('\x1f');
+      const [hash = '', short = '', author = '', date = ''] = parts;
+      const subject = parts.slice(4).join('\x1f');
+      return { hash, short, author, date, subject };
+    })
+    .filter((c) => c.hash !== '');
 }
 
 export function getActiveSelection(): SelectionTarget | undefined {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { planRangeToPositions, toRelativePath, clampRangeToDocument, END_OF_LINE_COL } from '../src/util/text';
+import { planRangeToPositions, toRelativePath, clampRangeToDocument, filePositionLabel, END_OF_LINE_COL } from '../src/util/text';
 
 const DOC = ['let a = 1;', 'let bb = 22;', '', 'fn long_line_here() {', '}'];
 
@@ -59,6 +59,30 @@ describe('toRelativePath', () => {
 
   it('returns empty for the root itself', () => {
     expect(toRelativePath('/ws/app', '/ws/app')).toBe('');
+  });
+});
+
+describe('filePositionLabel', () => {
+  const steps = [
+    { filePath: 'src/a.ts' },
+    { filePath: 'src/a.ts' },
+    { filePath: 'src/b.ts' },
+    { filePath: 'src/c.ts' },
+  ];
+
+  it('counts distinct files visited up to the current step', () => {
+    expect(filePositionLabel(steps, 0)).toBe('1/3 files');
+    expect(filePositionLabel(steps, 1)).toBe('1/3 files');
+    expect(filePositionLabel(steps, 2)).toBe('2/3 files');
+    expect(filePositionLabel(steps, 3)).toBe('3/3 files');
+  });
+
+  it('returns undefined for single-file tours', () => {
+    expect(filePositionLabel([{ filePath: 'src/a.ts' }, { filePath: 'src/a.ts' }], 1)).toBeUndefined();
+  });
+
+  it('handles an out-of-range current index safely', () => {
+    expect(filePositionLabel(steps, 99)).toBe('3/3 files');
   });
 });
 

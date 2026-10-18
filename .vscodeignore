@@ -4,6 +4,7 @@ src/**
 test/**
 scripts/**
 web/**
+docs/**
 esbuild.js
 tsconfig.json
 vitest.config.ts

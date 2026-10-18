@@ -1,4 +1,4 @@
-export type SidebarStartMode = 'diff' | 'staged' | 'selection' | 'instant' | 'file';
+export type SidebarStartMode = 'diff' | 'staged' | 'selection' | 'instant' | 'file' | 'commit';
 
 export interface SidebarHandlers {
   next(): void;
@@ -9,6 +9,8 @@ export interface SidebarHandlers {
   browse(): void;
   start(mode: SidebarStartMode, arg?: string): void;
   setStyle(style: string): void;
+  /** Open the model/provider setup flow from the welcome screen. */
+  configure(): void;
 }
 
 export interface InboundMessage {

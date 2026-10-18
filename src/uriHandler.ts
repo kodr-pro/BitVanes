@@ -1,7 +1,8 @@
 import type { WalkthroughStyle } from './llm/prompts';
 
-/** Deep-link scopes accepted by the vscode://bitvanes.bitvanes/walkthrough handler. */
-export type WalkthroughScope = 'working-tree' | 'staged' | 'instant';
+/** Deep-link scopes accepted by the vscode://bitvanes.bitvanes/walkthrough handler.
+ *  `commit` walks the changes HEAD introduced (the palette picker covers older commits). */
+export type WalkthroughScope = 'working-tree' | 'staged' | 'instant' | 'commit';
 
 export interface WalkthroughUriCommand {
   scope: WalkthroughScope;
@@ -22,6 +23,7 @@ const SCOPES: Record<string, WalkthroughScope> = {
   'working-tree': 'working-tree',
   staged: 'staged',
   instant: 'instant',
+  commit: 'commit',
 };
 
 const STYLES: Record<string, WalkthroughStyle> = {
@@ -37,7 +39,7 @@ const STYLES: Record<string, WalkthroughStyle> = {
  * open a vscode:// link — so this parser is strict and side-effect free:
  * - the authority must be exactly `bitvanes.bitvanes`;
  * - the path must be exactly `/walkthrough` (a trailing slash is tolerated);
- * - `scope` is required and must be one of `working-tree`, `staged`, `instant`;
+ * - `scope` is required and must be one of `working-tree`, `staged`, `instant`, `commit`;
  * - `style` is optional and must be one of `expert`, `standard`, `learner`;
  * - unknown query parameters are ignored (forward compatible);
  * - nothing here performs I/O; callers decide what a valid command does.
@@ -53,11 +55,11 @@ export function parseWalkthroughUri(authority: string, path: string, query: stri
   const params = new URLSearchParams(query);
   const scopeRaw = params.get('scope');
   if (scopeRaw === null) {
-    return { error: 'missing "scope" — use working-tree, staged or instant' };
+    return { error: 'missing "scope" — use working-tree, staged, instant or commit' };
   }
   const scope = SCOPES[scopeRaw.trim().toLowerCase()];
   if (!scope) {
-    return { error: `unknown scope "${scopeRaw}" — use working-tree, staged or instant` };
+    return { error: `unknown scope "${scopeRaw}" — use working-tree, staged, instant or commit` };
   }
 
   const styleRaw = params.get('style');

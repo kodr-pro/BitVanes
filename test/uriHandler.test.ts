@@ -12,6 +12,9 @@ describe('parseWalkthroughUri', () => {
     expect(parseWalkthroughUri('bitvanes.bitvanes', '/walkthrough', 'scope=instant')).toEqual({
       command: { scope: 'instant' },
     });
+    expect(parseWalkthroughUri('bitvanes.bitvanes', '/walkthrough', 'scope=commit')).toEqual({
+      command: { scope: 'commit' },
+    });
   });
 
   it('accepts a valid style override', () => {
@@ -29,6 +32,9 @@ describe('parseWalkthroughUri', () => {
   it('is case- and whitespace-tolerant on scope and style values', () => {
     expect(parseWalkthroughUri('bitvanes.bitvanes', '/walkthrough', 'scope=%20Working-Tree%20').command).toEqual({
       scope: 'working-tree',
+    });
+    expect(parseWalkthroughUri('bitvanes.bitvanes', '/walkthrough', 'scope=COMMIT').command).toEqual({
+      scope: 'commit',
     });
     expect(parseWalkthroughUri('bitvanes.bitvanes', '/walkthrough', 'scope=staged&style=LEARNER').command).toEqual({
       scope: 'staged',

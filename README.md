@@ -8,12 +8,11 @@ Two audiences, one tool: seasoned engineers use it to burn through review diffs 
 
 Built for reviewing exactly the kind of code where being wrong is expensive — smart-contract engines, consensus paths, auth flows, migrations — but useful for any change you want to *understand*, not just *read*.
 
-<!-- TODO: add a real screen recording at docs/demo.gif (spotlighted statement, dimmed scope, step transport). Uncomment the image once that file exists. Do not commit a fabricated stand-in. -->
-<!-- ![BitVanes walkthrough](docs/demo.gif) -->
+![BitVanes walkthrough](docs/demo.gif)
 
 ## How it works
 
-1. **Ingest** — `bitvanes.walkthroughDiff` reads your unstaged changes (tracked **and untracked** — brand-new AI-generated files included) via `git diff --unified=0` plus `git ls-files --others`; `bitvanes.walkthroughSelection` takes the function under your cursor.
+1. **Ingest** — `bitvanes.walkthroughDiff` reads your unstaged changes (tracked **and untracked** — brand-new AI-generated files included) via `git diff --unified=0` plus `git ls-files --others`; `bitvanes.walkthroughCommit` reads what a recent commit introduced; `bitvanes.walkthroughSelection` takes the function under your cursor.
 2. **Parse** — tree-sitter grammars (Rust, Go, Solidity, TypeScript/TSX, Python) extract declarations, assignments, and calls around every hunk. Unknown languages fall back to line-based heuristics — nothing crashes.
 3. **Generate** — an LLM produces a strict `WalkthroughPlan` JSON: ordered steps, exact 1-based ranges, variable transitions (`init → validate → mutate → commit → return`), and security notes where they matter.
 4. **Repair** — ranges are snapped back onto real AST nodes, so slightly-off model output still lands on the exact statement.
@@ -42,6 +41,7 @@ Built for reviewing exactly the kind of code where being wrong is expensive — 
 |---|---|
 | `BitVanes: Instant Walkthrough of Changes (No AI)` | Sub-second local walkthrough from AST analysis — no model, works offline |
 | `BitVanes: Walkthrough Working Tree Changes` | AI walkthrough of the unstaged diff |
+| `BitVanes: Walkthrough Last Commit…` | Pick one of the last 20 commits and tour what it introduced (diffed against its first parent) |
 | `BitVanes: Walkthrough Staged Changes` | AI walkthrough of the staged diff (also in the Source Control title menu) |
 | `BitVanes: Walkthrough Code Path at Cursor` | Trace the function under the cursor — no git needed |
 | `BitVanes: Next / Previous Step` | Transport — `alt+]` / `alt+[` anywhere; bare `]` / `[` when not typing in the editor |
@@ -59,10 +59,17 @@ can hand you a walkthrough of its own diff the moment it finishes:
 code --open-url "vscode://bitvanes.bitvanes/walkthrough?scope=working-tree"
 ```
 
-`scope` is `working-tree`, `staged`, or `instant` (local, no model); an
-optional `style=expert|standard|learner` tunes that run only. Drop the
-one-liner into your `AGENTS.md`, Cursor rules, or a Claude Code
-`PostToolUse` hook — [snippets here](https://bitvanes.com/guide/agents).
+`scope` is `working-tree`, `staged`, `instant` (local, no model), or
+`commit` (the changes HEAD introduced); an optional
+`style=expert|standard|learner` tunes that run only. Drop the one-liner into
+your `AGENTS.md`, Cursor rules, or a Claude Code `PostToolUse` hook —
+[snippets here](https://bitvanes.com/guide/agents). A post-commit hook works
+the same way:
+
+```bash
+git config --local core.hooksPath .githooks   # with .githooks/post-commit:
+code --open-url "vscode://bitvanes.bitvanes/walkthrough?scope=commit"
+```
 
 ## Security model
 

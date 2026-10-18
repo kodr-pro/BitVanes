@@ -85,6 +85,26 @@ describe('parseUnifiedDiff', () => {
   it('returns empty for non-diff input', () => {
     expect(parseUnifiedDiff('hello world')).toEqual([]);
   });
+
+  it('ignores preamble before the first diff — git diff-tree/log output shape', () => {
+    // `git diff-tree --root -p <commit>` prefixes the commit id line.
+    const out = [
+      '9fceb02d2a51b7e98e4e6e4e4e6a7d2c4b8a9e01',
+      'diff --git a/main.go b/main.go',
+      'new file mode 100644',
+      'index 0000000..1111111',
+      '--- /dev/null',
+      '+++ b/main.go',
+      '@@ -0,0 +1,2 @@',
+      '+package main',
+      '+func main() {}',
+    ].join('\n');
+    const files = parseUnifiedDiff(out);
+    expect(files).toHaveLength(1);
+    expect(files[0]!.path).toBe('main.go');
+    expect(files[0]!.status).toBe('A');
+    expect(files[0]!.hunks).toEqual([{ oldStart: 0, oldCount: 0, newStart: 1, newCount: 2 }]);
+  });
 });
 
 // The following fixtures match real `git diff` output shapes (verified against git):
