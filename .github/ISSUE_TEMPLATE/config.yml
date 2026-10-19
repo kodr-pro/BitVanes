@@ -3,3 +3,6 @@ contact_links:
   - name: Documentation
     url: https://bitvanes.com
     about: Install guides, walkthrough styles, provider setup and command reference.
+  - name: Security vulnerability
+    url: https://github.com/kodr-pro/BitVanes/security/advisories/new
+    about: Found something security-relevant? Do not open a public issue — report it privately.
