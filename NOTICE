@@ -1,2 +1,34 @@
 BitVanes
 Copyright 2026 kodr-pro
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use this product except in compliance with the License. See LICENSE for the
+full text.
+
+This product redistributes prebuilt WebAssembly binaries from third-party
+open-source projects. Binaries are vendored with SHA-256 pins that are
+verified at build time (scripts/fetch-grammars.mjs).
+
+1. Tree-sitter core runtime — resources/tree-sitter.wasm
+   Redistributed via the `web-tree-sitter` npm package.
+   Copyright (c) Max Brunsfeld and tree-sitter contributors.
+   Licensed under the MIT License.
+   Upstream: https://github.com/tree-sitter/tree-sitter
+   Package:  https://www.npmjs.com/package/web-tree-sitter
+
+2. Tree-sitter grammar binaries — resources/grammars/*.wasm
+   Prebuilt artifacts redistributed via the `tree-sitter-wasms` npm package
+   (public-domain aggregation of prebuilt grammars). Each grammar is an
+   independently licensed work of its respective authors and contributors,
+   under the MIT License unless noted in its upstream repository:
+
+   - tree-sitter-rust        — https://github.com/tree-sitter/tree-sitter-rust
+   - tree-sitter-go          — https://github.com/tree-sitter/tree-sitter-go
+   - tree-sitter-python      — https://github.com/tree-sitter/tree-sitter-python
+   - tree-sitter-typescript  — https://github.com/tree-sitter/tree-sitter-typescript
+                              (this build also provides tsx support)
+   - tree-sitter-tsx         — https://github.com/tree-sitter/tree-sitter-typescript
+   - tree-sitter-solidity    — https://github.com/JoranDirksen/tree-sitter-solidity
+
+   Full license texts and copyright statements are maintained in the
+   upstream repositories linked above.
