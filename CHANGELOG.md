@@ -4,6 +4,26 @@ All notable changes to BitVanes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [1.0.4] — 2026-10-22
+
+Listing-hygiene release — no runtime changes.
+
+### Changed
+- Categories corrected to `Education` and `Visualization`. The previous set
+  (`Programming Languages`, `Machine Learning`, `Chat`, `SCM Providers`)
+  described browse shelves for extensions that provide language support,
+  ML-development tooling, chat participants, or SCM backends — none of
+  which BitVanes does. Search is unaffected (keywords drive it); categories
+  only place the extension on the shelves its audience actually visits.
+- Install section: the Marketplace entry now states what is true today —
+  listing pending Microsoft review — instead of the stale publish-token
+  note; Open VSX is presented as the primary registry.
+
+### Fixed
+- NOTICE now attributes the vendored tree-sitter WebAssembly binaries
+  (core runtime via `web-tree-sitter`, grammars via `tree-sitter-wasms`)
+  to their upstream projects and licenses, as redistribution requires.
+
 ## [1.0.3] — 2026-10-18
 
 The "walk the commit" release: tours of committed work, a welcome screen

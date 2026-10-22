@@ -2,7 +2,7 @@
   "name": "bitvanes",
   "displayName": "BitVanes",
   "description": "Guided, step-by-step tours through diffs, AI-generated changes, and unfamiliar code — right inside VS Code.",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "publisher": "bitvanes",
   "license": "Apache-2.0",
   "icon": "resources/icon.png",
@@ -22,10 +22,8 @@
     "ui"
   ],
   "categories": [
-    "Programming Languages",
-    "Machine Learning",
-    "Chat",
-    "SCM Providers"
+    "Education",
+    "Visualization"
   ],
   "keywords": [
     "diff",

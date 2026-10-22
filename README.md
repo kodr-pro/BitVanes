@@ -20,8 +20,8 @@ Built for reviewing exactly the kind of code where being wrong is expensive — 
 
 ## Install
 
-- **Open VSX** (install from here until Marketplace review finishes): [bitvanes.bitvanes](https://open-vsx.org/extension/bitvanes/bitvanes)
-- **VS Code Marketplace** (not published yet — the publish token isn't configured, so the listing 404s): [bitvanes.bitvanes](https://marketplace.visualstudio.com/items?itemName=bitvanes.bitvanes)
+- **Open VSX** (primary registry): [bitvanes.bitvanes](https://open-vsx.org/extension/bitvanes/bitvanes)
+- **VS Code Marketplace** — not listed yet (Microsoft review pending). Until it is listed, use Open VSX or a release VSIX; every feature works — see [Choosing a model](#choosing-a-model) for provider setup
 - **From source:** `npm ci && npm run compile`, then open this folder in VS Code and press F5
 - **Prebuilt vsix:** grab the latest from [Releases](https://github.com/kodr-pro/BitVanes/releases) and run `code --install-extension bitvanes-v<version>.vsix`
 
