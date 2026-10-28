@@ -16,7 +16,7 @@
   "homepage": "https://bitvanes.com",
   "engines": {
     "vscode": "^1.95.0",
-    "node": ">=20.3.0"
+    "node": ">=22"
   },
   "extensionKind": [
     "ui"
