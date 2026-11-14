@@ -7,7 +7,7 @@ web/**
 docs/**
 esbuild.js
 tsconfig.json
-vitest.config.ts
+vitest.config.mts
 eslint.config.mjs
 node_modules/.cache/**
 !dist/**
