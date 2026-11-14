@@ -20,8 +20,7 @@ Built for reviewing exactly the kind of code where being wrong is expensive — 
 
 ## Install
 
-- **Open VSX** (primary registry): [bitvanes.bitvanes](https://open-vsx.org/extension/bitvanes/bitvanes)
-- **VS Code Marketplace** — not listed yet (Microsoft review pending). Until it is listed, use Open VSX or a release VSIX; every feature works — see [Choosing a model](#choosing-a-model) for provider setup
+- **Open VSX** (the store BitVanes publishes to): [bitvanes.bitvanes](https://open-vsx.org/extension/bitvanes/bitvanes)
 - **From source:** `npm ci && npm run compile`, then open this folder in VS Code and press F5
 - **Prebuilt vsix:** grab the latest from [Releases](https://github.com/kodr-pro/BitVanes/releases) and run `code --install-extension bitvanes-v<version>.vsix`
 
@@ -29,11 +28,11 @@ Built for reviewing exactly the kind of code where being wrong is expensive — 
 
 | Provider | Setup |
 |---|---|
-| **VS Code Copilot** (default on Marketplace installs only) | Sign in to GitHub Copilot. BitVanes uses the built-in Language Model API — no keys, no extra network config. This works only for installs from the VS Code Marketplace. Open VSX and VSIX installs cannot use Copilot as the default; configure an endpoint below. The Marketplace listing is not published yet. |
+| **VS Code Copilot** | Sign in to GitHub Copilot. BitVanes uses the built-in Language Model API — no keys, no extra network config. This API only serves extensions installed from the VS Code Marketplace or run from a dev window; BitVanes is distributed via Open VSX and VSIX, so most installs should configure an endpoint below. |
 | **Local — Ollama / LM Studio / vLLM** | `ollama serve`, then set `bitvanes.llm.baseUrl` to `http://localhost:11434/v1` and `bitvanes.llm.modelId` to e.g. `qwen2.5-coder:14b`. Code never leaves your machine. |
 | **OpenAI / Anthropic / OpenRouter** | Run `BitVanes: Set API Key for External LLM Provider`, pick a preset, paste the key. Keys live in VS Code SecretStorage — never in settings files or dotfiles. |
 
-`bitvanes.llm.provider: "auto"` uses Copilot when this install can reach it (a Marketplace install with Copilot signed in) and falls back to the configured endpoint otherwise. Open VSX and VSIX installs always use the configured endpoint.
+`bitvanes.llm.provider: "auto"` uses Copilot when this install can reach it (e.g. an Extension Development Host window with Copilot signed in) and falls back to the configured endpoint otherwise. Open VSX and VSIX installs always use the configured endpoint.
 
 ## Commands
 

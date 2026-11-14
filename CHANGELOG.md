@@ -15,9 +15,9 @@ Listing-hygiene release — no runtime changes.
   ML-development tooling, chat participants, or SCM backends — none of
   which BitVanes does. Search is unaffected (keywords drive it); categories
   only place the extension on the shelves its audience actually visits.
-- Install section: the Marketplace entry now states what is true today —
-  listing pending Microsoft review — instead of the stale publish-token
-  note; Open VSX is presented as the primary registry.
+- Install section: Open VSX presented as the registry BitVanes publishes to
+  (the Marketplace entry never existed — see the 1.0.2 correction and the
+  1.0.5 removal of the publish step).
 
 ### Fixed
 - NOTICE now attributes the vendored tree-sitter WebAssembly binaries
@@ -143,11 +143,9 @@ tours can now be started by whatever — or whoever — wrote the code.
   Open VSX review once — ever — and never again. It is a local counter in
   extension state; BitVanes still has zero telemetry.
 - Marketplace correction: the v1.0.1 release run shows `VSCE_PAT` was never
-  set, so the Marketplace publish step has always skipped — the listing was
-  never actually submitted for review, and earlier "pending review" notes
-  were wrong. Publishing needs an Azure DevOps PAT with Marketplace manage
-  scope stored as the `VSCE_PAT` repo secret; with it, the next tag release
-  submits the listing.
+  set, so the Marketplace publish step always skipped — no listing was ever
+  submitted, and earlier "pending review" notes were wrong. The step (and
+  its secret) were removed entirely in 1.0.5; Open VSX is the only store.
 - Release artifacts up to and including 1.0.0 were published under BitVanes'
   earlier proprietary license; 1.0.1 and later are Apache-2.0.
 
@@ -155,13 +153,14 @@ tours can now be started by whatever — or whoever — wrote the code.
 
 ### Changed
 - Install docs lead with Open VSX
-  (https://open-vsx.org/extension/bitvanes/bitvanes). The VS Code
-  Marketplace listing stays marked pending Microsoft review, and the docs
-  note that GitHub Copilot as the default model works only for Marketplace
-  installs.
-- Tag releases publish the VSIX to both Open VSX (`ovsx`, secret
-  `OVSX_PAT`) and the VS Code Marketplace (`vsce`, secret `VSCE_PAT`).
-  Each publish step skips when its secret is unset.
+  (https://open-vsx.org/extension/bitvanes/bitvanes); the docs' claim of a
+  Marketplace listing under review was never true (see the correction in
+  the 1.0.2 notes — the publish token was never set, and the step was
+  removed in 1.0.5). The docs note that GitHub Copilot as the default
+  model requires a Marketplace-published install.
+- Tag releases publish the VSIX to Open VSX (`ovsx`, secret `OVSX_PAT`);
+  the publish step skips when the secret is unset. (A Marketplace publish
+  step existed in this release but never ran — removed in 1.0.5.)
 - Relicensed under the Apache License 2.0. Copyright holder is kodr-pro.
 
 ### Removed
@@ -172,18 +171,17 @@ tours can now be started by whatever — or whoever — wrote the code.
 
 First stable release. The 0.x line converged on line-accurate walkthroughs,
 a hardened security model, and instant offline tours; 1.0.0 has no feature
-changes since 0.5.0. The extension is listed on Open VSX. The VS Code
-Marketplace listing is submitted and still pending Microsoft review — it is
-not live yet.
+changes since 0.5.0. The extension is listed on Open VSX. (The release
+notes claimed a Marketplace listing was submitted and awaiting review —
+that was never true; see the 1.0.2 correction.)
 
 ### Added
 - Open VSX listing — search "BitVanes", or install from
   https://open-vsx.org/extension/bitvanes/bitvanes
-- VS Code Marketplace listing submitted; the page 404s until Microsoft
-  finishes review. Once that listing is approved, installing from the
-  Marketplace is what unlocks the default GitHub Copilot provider: the
-  VS Code Language Model API only serves Marketplace-published extensions,
-  so Open VSX and VSIX installs fall back to a configured endpoint.
+- Note on model providers: the VS Code Language Model API only serves
+  Marketplace-published extensions and Extension Development Host
+  sessions, so Open VSX and VSIX installs use a configured endpoint
+  instead of the default GitHub Copilot provider.
 
 ### Changed
 - Repository relocated to `kodr-pro/BitVanes`; repository, issues, releases,
