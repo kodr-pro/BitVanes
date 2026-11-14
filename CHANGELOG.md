@@ -4,6 +4,59 @@ All notable changes to BitVanes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow
 [SemVer](https://semver.org/).
 
+## [1.0.5] — 2026-11-14
+
+Security-and-supportability patch: dependency advisories cleared end to end,
+Node 24 everywhere, a real log channel for failures, and the Marketplace
+publish path retired. No walkthrough behavior changes.
+
+### Security
+- `qs` upgraded to 6.17.0 (moderate DoS advisory against 6.16.0; transitive
+  via the packaging chain).
+- npm override pins `@azure/msal-node` to `^7.1.0` (resolves 7.1.1):
+  `@vscode/vsce` 4.x still pulls the vulnerable 6.0.1 line through
+  `@azure/identity`. Dev-only chain — msal-node executes only in vsce's AAD
+  publish flow, which this repo does not use; `vsce package` verified
+  working under 7.1.1.
+- npm override pins `minimatch` to `^11.0.1` (GHSA-g3hv-75wg-m249, moderate
+  DoS via globparts amplification). The single hoisted 10.2.6 copy flagged
+  the whole dev chain: typescript-eslint ≤ 8.72.2 (typescript-estree) and
+  `@vscode/vsce` ≥ 3.9.2 / `ovsx`. No stable typescript-eslint past 8.72.2
+  exists yet and vsce 4.1.1 still declares `^10.2.6`, so an override is the
+  only path to a clean audit today; lint, tests and `vsce package` verified
+  on 11.0.8. Root `npm audit`: 0 vulnerabilities.
+
+### Added
+- **"BitVanes" output channel** — timestamped, one line per failure:
+  model/provider errors (per-provider generation failures, the Copilot
+  model probe, welcome-screen status), every `git` failure (timeout, spawn
+  error, non-zero exit — logged once at the choke point, warn level since
+  several callers fall back on purpose), and tree-sitter parser/grammar
+  failures. Error toasts keep their message and gain a **Show Log** action
+  that reveals the channel; model-setup errors keep their "Set up a model"
+  action alongside it. Expected user states (no changes, not a repo) stay
+  toast-only.
+
+### Changed
+- **Open VSX is the only store.** The VS Code Marketplace publish step
+  (`VSCE_PAT`) is removed from the release workflow — the listing was never
+  actually submitted (the token was never set, so the step always skipped)
+  and the "pending Microsoft review" wording in the README and this
+  changelog was wrong and is gone. `vsce package` stays for building the
+  release VSIX.
+- **Node 24 consolidation:** CI and the web build run on Node 24
+  (`.nvmrc`), and `engines.node` rises to `>=22` — Node 20 is EOL and
+  dropped from the support floor.
+- Website toolchain: vitepress 2 (vite 8) for the docs site, clearing the
+  vite ≤ 6.4.3 path-traversal and esbuild/source-map-js advisories in
+  `web/` (docs build only; nothing from `web/` ships in the extension).
+  `web/ npm audit`: 0 vulnerabilities.
+
+### Fixed
+- Vitest no longer prints the `configLoader: 'native'` warning on every
+  run: the config is now `vitest.config.mts`, so Vite's native loader reads
+  it as ESM (native loading is slated to become Vite's default).
+
 ## [1.0.4] — 2026-10-22
 
 Listing-hygiene release — no runtime changes.
