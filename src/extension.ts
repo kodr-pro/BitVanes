@@ -16,6 +16,7 @@ import { summarizePlanFiles } from './pipeline/planFiles';
 import { StatusBarController } from './views/StatusBarController';
 import { WalkthroughSidebarProvider } from './views/WalkthroughSidebarProvider';
 import { toDisplayPath, toRelativePath } from './util/text';
+import { initLog, logError, logWarn, showLog } from './util/log';
 
 class UserError extends Error {}
 
@@ -56,6 +57,12 @@ let director: EditorDirector | undefined;
 let autoplayTimer: ReturnType<typeof setInterval> | null = null;
 
 export function activate(context: vscode.ExtensionContext): void {
+  // The "BitVanes" output channel: timestamped home for model/provider, git
+  // and tree-sitter errors. Error toasts get a "Show Log" action pointing here.
+  const logChannel = vscode.window.createOutputChannel('BitVanes');
+  initLog(logChannel);
+  context.subscriptions.push(logChannel);
+
   const resolver = new TreeSitterResolver(path.join(context.extensionPath, 'resources'));
   const llm = new LlmManager(context.secrets, context.globalState);
   director = new EditorDirector(GitProvider.workspaceRoot);
@@ -150,7 +157,8 @@ export function activate(context: vscode.ExtensionContext): void {
   const pushModelStatus = async () => {
     try {
       sidebar.setModelStatus(await llm.probeStatus());
-    } catch {
+    } catch (err) {
+      logWarn('model', err);
       sidebar.setModelStatus(null);
     }
   };
@@ -175,6 +183,12 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   const readText = (absPath: string) => fs.readFile(absPath, 'utf8');
+
+  /** Error toast with a "Show Log" action that reveals the BitVanes channel. */
+  const showErrorWithLog = (message: string) =>
+    vscode.window.showErrorMessage(message, 'Show Log').then((pick) => {
+      if (pick === 'Show Log') showLog();
+    });
 
   type PipelineKind = 'diff' | 'staged' | 'selection' | 'instant' | 'file' | 'commit';
   let pipelineBusy = false;
@@ -338,13 +352,20 @@ export function activate(context: vscode.ExtensionContext): void {
       if (err instanceof Error && /cancel/i.test(err.message)) return;
       const msg = err instanceof UserError || err instanceof Error ? err.message : String(err);
       if (err instanceof PlanValidationError) {
-        void vscode.window.showErrorMessage(`BitVanes: model output invalid — ${err.message}`);
+        logError('model', err);
+        void showErrorWithLog(`BitVanes: model output invalid — ${err.message}`);
       } else if (err instanceof Error && MODEL_SETUP_HINT_RE.test(msg)) {
-        void vscode.window.showErrorMessage(`BitVanes: ${msg}`, 'Set up a model').then((pick) => {
+        logError('model', err);
+        void vscode.window.showErrorMessage(`BitVanes: ${msg}`, 'Set up a model', 'Show Log').then((pick) => {
           if (pick === 'Set up a model') void vscode.commands.executeCommand('bitvanes.setApiKey');
+          else if (pick === 'Show Log') showLog();
         });
-      } else {
+      } else if (err instanceof UserError) {
+        // Expected user-facing states (no changes, no repo…) — toast only.
         void vscode.window.showErrorMessage(`BitVanes: ${msg}`);
+      } else {
+        logError('walkthrough', err);
+        void showErrorWithLog(`BitVanes: ${msg}`);
       }
     } finally {
       pipelineBusy = false;
@@ -364,8 +385,9 @@ export function activate(context: vscode.ExtensionContext): void {
         'Leave a review',
       );
       if (pick === 'Leave a review') void vscode.env.openExternal(vscode.Uri.parse(REVIEW_URL));
-    } catch {
+    } catch (err) {
       // Best-effort: never let the ask disturb a completed walkthrough.
+      logWarn('review', err);
     }
   };
 

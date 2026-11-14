@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { PlanValidationError, validateWalkthroughPlan, type WalkthroughPlan } from '../types/protocol';
 import { extractJson } from './json';
+import { logWarn } from '../util/log';
 import { buildRepairPrompt, buildUserPrompt, buildSystemPrompt, type WalkthroughRequest, type WalkthroughStyle } from './prompts';
 import { OpenAiCompatibleClient, detectLocalModelServer, hostOf, type LlmCompleteRequest } from './openaiCompatible';
 
@@ -62,7 +63,8 @@ export class VscodeLmClient implements LlmClient {
             seen.add(m.id);
             return true;
           });
-        } catch {
+        } catch (err) {
+          logWarn('model', `VS Code selectChatModels probe failed — Copilot may still be signing in: ${err instanceof Error ? err.message : String(err)}`);
           return [];
         }
       })();
@@ -240,6 +242,7 @@ export class LlmManager {
         return { plan, provider: client.label };
       } catch (err) {
         if (token?.isCancellationRequested) throw new Error('Walkthrough generation cancelled');
+        logWarn('model', `provider ${client.label} failed: ${err instanceof Error ? err.message : String(err)}`);
         failures.push(`${client.label}: ${err instanceof Error ? err.message : String(err)}`);
         if (/model_not_supported/.test(err instanceof Error ? err.message : String(err))) {
           sawModelNotSupported = true;

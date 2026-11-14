@@ -2,6 +2,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import type { Range, WalkthroughPlan, WalkthroughStep } from '../types/protocol';
 import { mdEscape, mdInline } from '../util/markdown';
+import { logError, logWarn } from '../util/log';
 import { planRangeToPositions } from '../util/text';
 
 export interface WalkthroughState {
@@ -82,6 +83,7 @@ export class EditorDirector implements vscode.Disposable {
   private async navigateToStep(step: WalkthroughStep, preserveFocus: boolean): Promise<void> {
     const abs = this.resolveAbs(step.filePath);
     if (!abs) {
+      logWarn('editor', new Error(`could not resolve ${step.filePath} against the workspace root`));
       void vscode.window.showWarningMessage(`BitVanes: could not resolve ${step.filePath} in this workspace.`);
       return;
     }
@@ -97,7 +99,8 @@ export class EditorDirector implements vscode.Disposable {
       const scopeVs = step.scopeRange ? toVsRange(step.scopeRange, doc) : undefined;
       editor.revealRange(scopeVs ?? vsRange, vscode.TextEditorRevealType.InCenter);
       this.applyDecorations(editor, step, vsRange, scopeVs);
-    } catch {
+    } catch (err) {
+      logError('editor', err);
       void vscode.window.showWarningMessage(`BitVanes: file not found for step — ${step.filePath}`);
     }
   }

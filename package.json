@@ -2,7 +2,7 @@
   "name": "bitvanes",
   "displayName": "BitVanes",
   "description": "Guided, step-by-step tours through diffs, AI-generated changes, and unfamiliar code — right inside VS Code.",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "publisher": "bitvanes",
   "license": "Apache-2.0",
   "icon": "resources/icon.png",
@@ -337,6 +337,7 @@
     "vitest": "^5.0.1"
   },
   "overrides": {
-    "@azure/msal-node": "^7.1.0"
+    "@azure/msal-node": "^7.1.0",
+    "minimatch": "^11.0.1"
   }
 }
