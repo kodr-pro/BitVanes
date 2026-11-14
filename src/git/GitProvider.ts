@@ -4,6 +4,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import type { Range } from '../types/protocol';
 import { indentOf, expandToBlock } from '../util/text';
+import { logWarn } from '../util/log';
 import { parseUnifiedDiff, wholeFileHunk } from './pure';
 import type { DiffFile } from './pure';
 
@@ -43,9 +44,16 @@ export class GitProvider {
       });
       let stdout = '';
       let stderr = '';
+      // Every git failure funnels through here — one log line per failure in
+      // the BitVanes channel. Warn level: several callers catch and fall back
+      // on purpose (fresh repos, missing HEAD), and those fallbacks stay visible.
+      const fail = (err: Error) => {
+        logWarn('git', err);
+        reject(err);
+      };
       const timer = setTimeout(() => {
         child.kill();
-        reject(new Error(`git ${args[0]} timed out after ${timeoutMs}ms`));
+        fail(new Error(`git ${args[0]} timed out after ${timeoutMs}ms`));
       }, timeoutMs);
       child.stdout.on('data', (d: Buffer) => {
         stdout += d.toString('utf8');
@@ -55,12 +63,12 @@ export class GitProvider {
       });
       child.on('error', (err) => {
         clearTimeout(timer);
-        reject(err);
+        fail(err);
       });
       child.on('close', (code) => {
         clearTimeout(timer);
         if (code === 0) resolve(stdout);
-        else reject(new Error(`git ${args.join(' ')} exited with ${code}: ${stderr.trim().slice(0, 400)}`));
+        else fail(new Error(`git ${args.join(' ')} exited with ${code}: ${stderr.trim().slice(0, 400)}`));
       });
     });
   }

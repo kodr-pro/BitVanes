@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { Parser, Language, type Tree, type Node as TSNode } from 'web-tree-sitter';
 import type { Range } from '../types/protocol';
 import { clampRangeToDocument, expandToBlock, indentOf } from '../util/text';
+import { logError, logWarn } from '../util/log';
 import { extractFallbackNodes, fallbackFunctionRanges, type FallbackNode } from './LineFallback';
 
 export type NodeCategory = 'function' | 'declaration' | 'assignment' | 'call' | 'control' | 'security';
@@ -156,7 +157,8 @@ export class TreeSitterResolver {
         this.parser = p;
         return p;
       })();
-      this.parserInit.catch(() => {
+      this.parserInit.catch((err) => {
+        logError('tree-sitter', err);
         this.wasmUsable = false;
         this.parserInit = null;
       });
@@ -174,12 +176,16 @@ export class TreeSitterResolver {
         await this.ensureParser();
         return Language.load(wasmPath);
       })();
-      load.catch(() => this.langs.delete(name));
+      load.catch((err) => {
+        logWarn('tree-sitter', `failed to load ${wasmPath}: ${err instanceof Error ? err.message : String(err)}`);
+        this.langs.delete(name);
+      });
       this.langs.set(name, load);
     }
     try {
       return await this.langs.get(name)!;
-    } catch {
+    } catch (err) {
+      logWarn('tree-sitter', err);
       return null;
     }
   }
@@ -201,7 +207,8 @@ export class TreeSitterResolver {
       const namedRanges: Array<{ range: Range; type: string; text: string }> = [];
       this.walk(tree.rootNode, profile, nodes, namedRanges);
       return { absPath, language: lang, tree, nodes, namedRanges, fallback: false };
-    } catch {
+    } catch (err) {
+      logWarn('tree-sitter', `parse failed for ${absPath} (${lang}) — falling back to line heuristics: ${err instanceof Error ? err.message : String(err)}`);
       return this.fallbackAst(absPath, source);
     }
   }
